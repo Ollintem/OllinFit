@@ -84,13 +84,16 @@
                                     </a>
                                     <!-- Si no es admin, mostrar botón eliminar -->
                                     @if(!$employee->hasRole('Administrador'))
-                                    <form action="{{ route('empleados.destroy', $employee->id) }}" method="POST" class="inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-gray-400 hover:text-red-600 transition-colors" onclick="return confirm('¿Eliminar empleado?')">
-                                            <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                        </button>
-                                    </form>
+                                        <!-- Botón de Eliminar Empleado (Envuelto en form) -->
+                                        <form action="{{ route('empleados.destroy', $employee->id) }}" method="POST" class="inline-block form-eliminar">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-gray-400 hover:text-red-500 transition-colors" title="Eliminar empleado">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                            </button>
+                                        </form>
                                     @endif
                                 </td>
                             </tr>
@@ -141,9 +144,25 @@
                                     <p class="text-sm font-bold text-gray-800">{{ $role->name }}</p>
                                     <p class="text-xs text-gray-500">
                                         @if($role->name === 'Administrador')
-                                            Acceso total
+                                            <!-- Candado: Bloqueado por seguridad -->
+                                            <svg class="w-4 h-4 text-gray-300" title="Rol protegido" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                                         @else
-                                            {{ $role->users_count }} empleado(s) asignado(s)
+                                            <!-- Botones de Acción para el Rol -->
+                                            <div class="flex items-center gap-3">
+                                                <!-- Editar Rol -->
+                                                <a href="{{ route('roles.edit', $role->id) }}" class="text-gray-400 hover:text-blue-500 transition-colors" title="Editar Rol">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                                </a>
+                                                
+                                                <!-- Eliminar Rol -->
+                                                <form action="{{ route('roles.destroy', $role->id) }}" method="POST" class="inline-block form-eliminar-rol">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="text-gray-400 hover:text-red-500 transition-colors" title="Eliminar Rol">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                    </button>
+                                                </form>
+                                            </div>
                                         @endif
                                     </p>
                                 </div>
@@ -159,4 +178,53 @@
             </div>
         </div>
     </div>
+    <!-- Script para confirmar eliminación con SweetAlert -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            // 1. Alerta para Empleados
+            const formsEliminarEmpleado = document.querySelectorAll('.form-eliminar');
+            formsEliminarEmpleado.forEach(form => {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault(); 
+                    Swal.fire({
+                        title: '¿Estás seguro?',
+                        text: "El empleado perderá su acceso al sistema de forma permanente.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#f97316', 
+                        cancelButtonColor: '#9ca3af',
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) { this.submit(); }
+                    });
+                });
+            });
+
+            // 2. Alerta para Roles
+            const formsEliminarRol = document.querySelectorAll('.form-eliminar-rol');
+            formsEliminarRol.forEach(form => {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault(); 
+                    Swal.fire({
+                        title: '¿Eliminar este Rol?',
+                        text: "Los empleados que tengan este rol se quedarán sin accesos asignados.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#ef4444', // Rojo
+                        cancelButtonColor: '#9ca3af',
+                        confirmButtonText: 'Sí, eliminar rol',
+                        cancelButtonText: 'Cancelar',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) { this.submit(); }
+                    });
+                });
+            });
+
+        });
+    </script>
 </x-app-layout>
