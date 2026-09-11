@@ -73,7 +73,7 @@
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                                     <span class="font-medium">Socios activos:</span>
                                 </div>
-                                <span class="font-bold text-gray-700">0</span> 
+                                <span class="font-bold text-gray-700">{{ $plan->active_members_count }}</span> 
                             </div>
                         </div>
                     </div>

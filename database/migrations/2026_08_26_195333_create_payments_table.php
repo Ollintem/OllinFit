@@ -10,15 +10,20 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('payments', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('member_id')->constrained()->cascadeOnDelete();
-        $table->foreignId('membership_id')->constrained()->cascadeOnDelete();
-        $table->decimal('amount', 8, 2);
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('payments', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('member_id')->constrained()->cascadeOnDelete();
+            
+            // Estas son las columnas que nos faltaban:
+            $table->string('plan_name'); 
+            $table->decimal('amount', 10, 2);
+            $table->string('payment_method');
+            $table->string('folio_pago')->unique();
+            
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

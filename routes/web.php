@@ -5,6 +5,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\RoleController; // <-- 1. Importamos el controlador de Roles
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PlanController;
+use App\Http\Controllers\MemberController;
 
 // Ruta principal: Mandar directo al Login
 Route::get('/', function () {
@@ -80,6 +81,29 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('planes/{plan}/edit', [PlanController::class, 'edit'])->name('planes.edit')->middleware('permission:crear_editar_planes');
     Route::put('planes/{plan}', [PlanController::class, 'update'])->name('planes.update')->middleware('permission:crear_editar_planes');
     Route::delete('planes/{plan}', [PlanController::class, 'destroy'])->name('planes.destroy')->middleware('permission:eliminar_planes');
+
+
+    // =========================================================
+    // MÓDULO: SOCIOS
+    // =========================================================
+    
+    Route::get('socios', [MemberController::class, 'index'])->name('socios.index');
+    Route::get('socios/create', [MemberController::class, 'create'])->name('socios.create');
+    Route::post('socios', [MemberController::class, 'store'])->name('socios.store');
+    Route::get('socios/{member}', [MemberController::class, 'show'])->name('socios.show');
+    Route::post('socios/{member}/renovar', [MemberController::class, 'renew'])->name('socios.renew');
+    Route::get('socios/{member}/ticket', [MemberController::class, 'ticket'])->name('socios.ticket');
+    Route::get('socios/{member}/pagos', [MemberController::class, 'payments'])->name('socios.pagos');
+    Route::get('socios/{member}/accesos', [MemberController::class, 'accesses'])->name('socios.accesos');
+    Route::get('socios/{member}/accesos', [MemberController::class, 'accesses'])->name('socios.accesos');
+
+
+
+    // MÓDULO: CONTROL DE ACCESO
+    Route::get('/acceso', [App\Http\Controllers\AccessController::class, 'index'])->name('acceso.index');
+    Route::post('/acceso/escanear', [App\Http\Controllers\AccessController::class, 'scan'])->name('acceso.scan');
+    Route::post('/acceso/liberar/{member}', [App\Http\Controllers\AccessController::class, 'release'])->name('acceso.release');
+    
 
     // Nota: Más adelante podemos agregarle los middlewares de permission 
     // a estas rutas (ej. 'crear_roles', 'mostrar_roles') igual que a empleados.

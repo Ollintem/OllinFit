@@ -10,14 +10,18 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('access_logs', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('member_id')->constrained()->cascadeOnDelete();
-        $table->boolean('status'); // true = Verde, false = Rojo
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('access_logs', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('member_id')->constrained()->cascadeOnDelete();
+            
+            // Estas son las dos columnas que MySQL nos está pidiendo a gritos:
+            $table->string('access_method')->default('Escáner QR');
+            $table->string('status')->default('Permitido');
+            
+            $table->timestamps();
+        });
+    }
     /**
      * Reverse the migrations.
      */
