@@ -68,13 +68,14 @@
                                 <span class="font-bold text-gray-700">{{ $plan->duration_days }} Días</span>
                             </div>
                             
-                            <div class="flex justify-between items-center text-[13px]">
-                                <div class="flex items-center gap-1.5 text-gray-400">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                                    <span class="font-medium">Socios activos:</span>
-                                </div>
-                                <span class="font-bold text-gray-700">{{ $plan->active_members_count }}</span> 
-                            </div>
+                           <div class="flex items-center justify-between text-[11px] text-gray-500 mt-2">
+        <div class="flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            Socios activos:
+        </div>
+        <!-- Esta es la variable que imprime el número en pantalla -->
+        <span class="font-bold text-gray-800">{{ $plan->members_count }}</span>
+    </div>
                         </div>
                     </div>
 
@@ -88,10 +89,11 @@
                         <form action="{{ route('planes.destroy', $plan->id) }}" method="POST" class="inline-block form-eliminar">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="flex items-center gap-1 text-[11px] font-bold text-gray-400 hover:text-red-600 transition-colors uppercase tracking-wide">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                Eliminar
-                            </button>
+                            <!-- Botón de Eliminar (Dispara el Modal Seguro) -->
+                         <button type="button" onclick="confirmarEliminacionPlan({{ $plan->id }}, '{{ $plan->name }}')" class="flex items-center gap-1 text-[11px] font-bold text-gray-400 hover:text-red-600 transition-colors uppercase tracking-wide cursor-pointer">
+                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                         Eliminar
+                         </button>
                         </form>
                     </div>
                 </div>
@@ -137,5 +139,64 @@
                 });
             });
         });
+    </script>
+    <!-- ==========================================
+         MODAL DE SEGURIDAD PARA ELIMINAR PLANES
+         ========================================== -->
+    <div id="modal-delete-plan" class="fixed inset-0 z-50 hidden bg-gray-900/80 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-300" id="modal-delete-plan-content">
+            <div class="p-6 text-center">
+                <!-- Icono de Peligro -->
+                <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4 border-4 border-red-50">
+                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                
+                <h3 class="text-xl font-bold text-gray-800 mb-2">¿Eliminar este Plan?</h3>
+                <p class="text-gray-500 text-sm mb-6">Estás a punto de eliminar el plan <strong id="delete-plan-name" class="text-gray-800 uppercase"></strong>. Si hay socios usando este plan, el sistema bloqueará la acción por seguridad.</p>
+
+                <!-- Formulario Real de Eliminación -->
+                <form id="form-delete-plan-secure" action="" method="POST" class="flex items-center justify-center gap-3">
+                    @csrf
+                    @method('DELETE')
+                    <button type="button" onclick="cerrarModalEliminarPlan()" class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm w-full">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 font-bold shadow-sm transition-colors text-sm w-full flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        Sí, Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de Seguridad -->
+    <script>
+        function confirmarEliminacionPlan(id, nombre) {
+            const modal = document.getElementById('modal-delete-plan');
+            const modalContent = document.getElementById('modal-delete-plan-content');
+            
+            document.getElementById('delete-plan-name').textContent = nombre;
+
+            let urlBase = '{{ route("planes.destroy", ":id") }}';
+            document.getElementById('form-delete-plan-secure').action = urlBase.replace(':id', id);
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function cerrarModalEliminarPlan() {
+            const modal = document.getElementById('modal-delete-plan');
+            const modalContent = document.getElementById('modal-delete-plan-content');
+
+            modal.classList.add('opacity-0');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
     </script>
 </x-app-layout>

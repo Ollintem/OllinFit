@@ -134,35 +134,43 @@
                             <table class="w-full text-left border-collapse">
                                 <thead>
                                     <tr class="text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 bg-gray-50/50">
-                                        <th class="px-6 py-4">Fecha y Hora</th>
+                                        <th class="px-6 py-4">Fecha</th>
+                                        <th class="px-6 py-4">Hora</th>
                                         <th class="px-6 py-4">Método de Acceso</th>
                                         <th class="px-6 py-4">Estado</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-50 text-sm">
+                           <tbody class="divide-y divide-gray-50 text-sm">
                                     @forelse($ultimosAccesos as $acceso)
                                     <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="px-6 py-4 font-medium text-gray-800">{{ $acceso->created_at->format('d/M/Y - h:i A') }}</td>
+                                        <!-- 1. Columna FECHA -->
+                                        <td class="px-6 py-4 font-medium text-gray-800">{{ $acceso->created_at->format('d/M/Y') }}</td>
+                                        
+                                        <!-- 2. Columna HORA (Esta es la que faltaba separar) -->
+                                        <td class="px-6 py-4 text-gray-500">{{ $acceso->created_at->format('h:i A') }}</td>
+                                        
+                                        <!-- 3. Columna MÉTODO -->
                                         <td class="px-6 py-4 text-gray-500 flex items-center gap-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
                                             {{ $acceso->access_method }}
                                         </td>
-                                                <td class="px-6 py-4">
-                                        @if($acceso->status === 'Denegado')
-                                            <span class="text-red-500 font-bold text-xs bg-red-50 px-2 py-1 rounded">Acceso Denegado</span>
-                                        @elseif($acceso->status === 'Entrada')
-                                            <span class="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-1 rounded border border-emerald-100">Entrada</span>
-                                        @elseif($acceso->status === 'Salida')
-                                            <span class="text-blue-600 font-bold text-xs bg-blue-50 px-2 py-1 rounded border border-blue-100">Salida</span>
-                                        @else
-                                            <!-- Para los registros viejitos que decían "Permitido" -->
-                                            <span class="text-gray-500 font-medium text-xs">{{ $acceso->status }}</span>
-                                        @endif
-                                    </td>
+                                        
+                                        <!-- 4. Columna ESTADO -->
+                                        <td class="px-6 py-4">
+                                            @if($acceso->status === 'Denegado')
+                                                <span class="text-red-500 font-bold text-xs bg-red-50 px-2 py-1 rounded">Acceso Denegado</span>
+                                            @elseif($acceso->status === 'Entrada')
+                                                <span class="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-1 rounded border border-emerald-100">Entrada</span>
+                                            @elseif($acceso->status === 'Salida')
+                                                <span class="text-blue-600 font-bold text-xs bg-blue-50 px-2 py-1 rounded border border-blue-100">Salida</span>
+                                            @else
+                                                <span class="text-gray-500 font-medium text-xs">{{ $acceso->status }}</span>
+                                            @endif
+                                        </td>
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="3" class="px-6 py-8 text-center text-gray-500 text-sm">No hay accesos registrados para este socio.</td>
+                                        <td colspan="4" class="px-6 py-8 text-center text-gray-500 text-sm">No hay accesos registrados para este socio.</td>
                                     </tr>
                                     @endforelse
                                 </tbody>
@@ -180,6 +188,7 @@
                                 <thead>
                                     <tr class="text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 bg-gray-50/50">
                                         <th class="px-6 py-4">Fecha / Folio</th>
+                                        <th class="px-6 py-4">Hora</th> <!-- Encabezado nuevo -->
                                         <th class="px-6 py-4">Concepto</th>
                                         <th class="px-6 py-4">Método</th>
                                         <th class="px-6 py-4 text-right">Importe</th>
@@ -188,11 +197,20 @@
                                 <tbody class="divide-y divide-gray-50 text-sm">
                                     @forelse($pagos as $pago)
                                     <tr class="hover:bg-gray-50 transition-colors">
+                                        
+                                        <!-- 1. Columna FECHA / FOLIO -->
                                         <td class="px-6 py-4">
-                                            <span class="block font-medium text-gray-800">{{ $pago->created_at->format('d/M/Y - h:i A') }}</span>
+                                            <span class="block font-medium text-gray-800">{{ $pago->created_at->format('d/M/Y') }}</span>
                                             <span class="block text-[11px] text-gray-400 mt-0.5">{{ $pago->folio_pago }}</span>
                                         </td>
+                                        
+                                        <!-- 2. Columna HORA (Nueva) -->
+                                        <td class="px-6 py-4 text-gray-500 font-medium">{{ $pago->created_at->format('h:i A') }}</td>
+                                        
+                                        <!-- 3. Columna CONCEPTO -->
                                         <td class="px-6 py-4 text-gray-600 font-medium">{{ $pago->plan_name }}</td>
+                                        
+                                        <!-- 4. Columna MÉTODO -->
                                         <td class="px-6 py-4 text-gray-500">
                                             @if($pago->payment_method === 'efectivo')
                                                 <span class="inline-flex items-center gap-1"><svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg> Efectivo</span>
@@ -200,13 +218,16 @@
                                                 <span class="inline-flex items-center gap-1"><svg class="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg> Tarjeta</span>
                                             @endif
                                         </td>
+                                        
+                                        <!-- 5. Columna IMPORTE -->
                                         <td class="px-6 py-4 text-right font-bold text-gray-800">
                                             ${{ number_format($pago->amount, 2) }}
                                         </td>
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="4" class="px-6 py-8 text-center text-gray-500 text-sm">No hay pagos registrados para este socio.</td>
+                                        <!-- 5 columnas para la tabla vacía -->
+                                        <td colspan="5" class="px-6 py-8 text-center text-gray-500 text-sm">No hay pagos registrados para este socio.</td>
                                     </tr>
                                     @endforelse
                                 </tbody>
@@ -472,4 +493,24 @@
                 tabAccesos.classList.add(...inactiveTabClasses);
             });
     </script>
+<!-- ==========================================
+         SISTEMA DE IMPRESIÓN AUTOMÁTICA
+         ========================================== -->
+    @if(session('imprimir_ticket'))
+        <!-- Cargamos el ticket en un mini navegador invisible -->
+        <iframe id="frameImpresion" src="{{ session('imprimir_ticket') }}" class="hidden" style="display: none;"></iframe>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const iframe = document.getElementById('frameImpresion');
+                
+                // Esperamos a que el diseño del ticket cargue por completo en el fondo
+                iframe.onload = function() {
+                    // Disparamos la ventana de impresión enfocando solo el ticket
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                };
+            });
+        </script>
+    @endif
 </x-app-layout>

@@ -8,9 +8,13 @@ use Illuminate\Http\Request;
 class PlanController extends Controller
 {
     // 1. Mostrar el catálogo de planes
-    public function index()
+   public function index()
     {
-        $planes = Plan::all();
+        // Traemos los planes y contamos los socios cuya fecha de vencimiento es igual o mayor a hoy
+        $planes = \App\Models\Plan::withCount(['members' => function ($query) {
+            $query->whereDate('expiration_date', '>=', now());
+        }])->get();
+
         return view('planes.index', compact('planes'));
     }
 
@@ -76,9 +80,22 @@ class PlanController extends Controller
     }
 
     // 6. Eliminar el plan
-    public function destroy(Plan $plan)
+   public function destroy($id)
     {
-        $plan->delete();
-        return redirect()->route('planes.index')->with('success', 'Plan eliminado del sistema.');
+        try {
+            $plan = \App\Models\Plan::findOrFail($id);
+            
+            // Intenta eliminar el plan de la base de datos
+            $plan->delete();
+
+            return redirect()->route('planes.index')->with('success', 'El plan fue eliminado correctamente del sistema.');
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            // SEGURIDAD: Si el plan ya fue asignado a uno o más socios, la BD rechazará el borrado.
+            return redirect()->route('planes.index')->with('error', '🛡️ ¡ALERTA DE SEGURIDAD! No se puede eliminar este plan porque existen socios (activos o inactivos) que lo están usando o lo usaron en el pasado. Para dejar de ofrecerlo, te recomendamos editarlo y cambiar su estado a "Inactivo".');
+            
+        } catch (\Exception $e) {
+            return redirect()->route('planes.index')->with('error', 'Ocurrió un error inesperado al intentar eliminar el plan.');
+        }
     }
 }

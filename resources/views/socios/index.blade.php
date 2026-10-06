@@ -106,18 +106,21 @@
                                 @endif
                             </td>
                             
+                        
                             <!-- Acciones -->
                             <td class="px-6 py-4 text-right space-x-3">
-                                <button class="text-gray-300 hover:text-blue-500 transition-colors" title="Ver detalles">
-                                    
-                                    <a href="{{ route('socios.show', $socio->id) }}" class="text-gray-300 hover:text-blue-500 transition-colors inline-block" title="Ver detalles">
-                                        <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                    </a>
-                                </button>
-                                <button class="text-gray-300 hover:text-orange-500 transition-colors" title="Editar socio">
+                                <!-- BOTÓN VER -->
+                                <a href="{{ route('socios.show', $socio->id) }}" class="text-gray-300 hover:text-emerald-500 transition-colors inline-block" title="Ver detalles">
+                                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                </a>
+
+                                <!-- BOTÓN EDITAR -->
+                                <a href="{{ route('socios.edit', $socio->id) }}" class="text-gray-300 hover:text-blue-500 transition-colors inline-block" title="Editar socio">
                                     <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                                </button>
-                                <button class="text-gray-300 hover:text-red-500 transition-colors" title="Eliminar socio">
+                                </a>
+
+                                <!-- BOTÓN ELIMINAR (Dispara el modal) -->
+                                <button type="button" onclick="confirmarEliminacionSocio({{ $socio->id }}, '{{ $socio->name }} {{ $socio->last_name }}')" class="text-gray-300 hover:text-red-500 transition-colors inline-block" title="Eliminar socio">
                                     <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 </button>
                             </td>
@@ -133,4 +136,54 @@
 
         </div>
     </div>
+    <!-- MODAL SEGURIDAD ELIMINAR SOCIO -->
+    <div id="modal-delete-socio" class="fixed inset-0 z-50 hidden bg-gray-900/80 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-300" id="modal-delete-socio-content">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4 border-4 border-red-50">
+                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                
+                <h3 class="text-xl font-bold text-gray-800 mb-2">¿Estás completamente seguro?</h3>
+                <p class="text-gray-500 text-sm mb-6">Estás a punto de eliminar a <strong id="delete-socio-name" class="text-gray-800 uppercase"></strong>. Esta acción eliminará permanentemente su acceso.</p>
+
+                <form id="form-delete-socio-secure" action="" method="POST" class="flex items-center justify-center gap-3">
+                    @csrf
+                    @method('DELETE')
+                    <button type="button" onclick="cerrarModalEliminarSocio()" class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm w-full">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 font-bold shadow-sm transition-colors text-sm w-full flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        Sí, Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DEL MODAL -->
+    <script>
+        function confirmarEliminacionSocio(id, nombre) {
+            const modal = document.getElementById('modal-delete-socio');
+            const modalContent = document.getElementById('modal-delete-socio-content');
+            
+            document.getElementById('delete-socio-name').textContent = nombre;
+
+            // Inyectar ruta
+            let urlBase = '{{ route("socios.destroy", ":id") }}';
+            document.getElementById('form-delete-socio-secure').action = urlBase.replace(':id', id);
+
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); modalContent.classList.remove('scale-95'); }, 10);
+        }
+
+        function cerrarModalEliminarSocio() {
+            const modal = document.getElementById('modal-delete-socio');
+            const modalContent = document.getElementById('modal-delete-socio-content');
+
+            modal.classList.add('opacity-0'); modalContent.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+    </script>
 </x-app-layout>

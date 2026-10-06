@@ -6,23 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
-{
-    Schema::create('sale_items', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('sale_id')->constrained()->cascadeOnDelete();
-        $table->foreignId('product_id')->constrained();
-        $table->integer('quantity');
-        $table->decimal('price', 8, 2); // Precio al momento de la venta
-        $table->timestamps();
-    });
-}
-    /**
-     * Reverse the migrations.
-     */
+    {
+        Schema::create('sale_items', function (Blueprint $table) {
+            $table->id();
+            
+            // Llaves foráneas con nombres correctos y sin espacios
+            $table->unsignedBigInteger('sale_id');
+            $table->foreign('sale_id')->references('id')->on('sales')->onDelete('cascade');
+            
+            $table->unsignedBigInteger('product_id');
+            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
+            
+            $table->integer('quantity');
+            $table->decimal('price', 8, 2);
+            $table->timestamps();
+        });
+    }
+
     public function down(): void
     {
         Schema::dropIfExists('sale_items');

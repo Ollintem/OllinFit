@@ -45,50 +45,60 @@ class MemberController extends Controller
     }
     // Guardar el nuevo socio en la base de datos
     public function store(Request $request)
-    {
-        // 1. Validar los datos (Agregamos 'webp' a los formatos permitidos)
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
-            'email' => 'nullable|email|max:255|unique:members,email',
-            'plan_id' => 'required|exists:plans,id',
-            'photo' => 'nullable|mimes:jpeg,png,jpg,webp|max:5120', // Permitimos WebP
-        ]);
+{
+    // 1. Validar los datos
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'last_name' => 'required|string|max:255',
+        'phone' => 'required|string|max:20',
+        'email' => 'nullable|email|max:255|unique:members,email',
+        'plan_id' => 'required|exists:plans,id',
+        'photo' => 'nullable|mimes:jpeg,png,jpg,webp|max:5120',
+    ]);
 
-        // 2. Generar el Folio de forma segura en el backend
-        $ultimoSocio = \App\Models\Member::latest('id')->first();
-        $siguienteId = $ultimoSocio ? $ultimoSocio->id + 1 : 1;
-        $folio = 'MX-' . str_pad($siguienteId + 9000, 4, '0', STR_PAD_LEFT);
+    // 2. Generar el Folio de forma segura en el backend
+    $ultimoSocio = \App\Models\Member::latest('id')->first();
+    $siguienteId = $ultimoSocio ? $ultimoSocio->id + 1 : 1;
+    $folio = 'MX-' . str_pad($siguienteId + 9000, 4, '0', STR_PAD_LEFT);
 
-        // 3. Calcular la fecha de vencimiento según el plan seleccionado
-        $plan = \App\Models\Plan::find($request->plan_id);
-        $fechaVencimiento = \Carbon\Carbon::today()->addDays($plan->duration_days);
+    // 3. Obtener el plan y calcular la fecha de vencimiento y precio
+    $plan = \App\Models\Plan::find($request->plan_id);
+    $fechaVencimiento = \Carbon\Carbon::today()->addDays($plan->duration_days);
 
-       // 4. Guardado nativo (Sin Intervention Image ni GD)
-        $rutaImagen = null;
-        if ($request->hasFile('photo')) {
-            $nombreArchivo = uniqid('socio_') . '.webp';
-            
-            // Laravel guarda el archivo directamente en storage/app/public/socios
-            $rutaImagen = $request->file('photo')->storeAs('socios', $nombreArchivo, 'public');
-        }
-        // 5. Guardar en la Base de Datos
-        \App\Models\Member::create([
-            'folio' => $folio,
-            'name' => $request->name,
-            'last_name' => $request->last_name,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'plan_id' => $plan->id,
-            'expiration_date' => $fechaVencimiento,
-            'profile_photo_path' => $rutaImagen,
-            'is_active' => true,
-        ]);
-
-        // 6. Redirigir al index con mensaje de éxito
-        return redirect()->route('socios.index')->with('success', 'Socio registrado y cobrado exitosamente.');
+    // 4. Guardar la fotografía si existe
+    $rutaImagen = null;
+    if ($request->hasFile('photo')) {
+        $nombreArchivo = uniqid('socio_') . '.webp';
+        $rutaImagen = $request->file('photo')->storeAs('socios', $nombreArchivo, 'public');
     }
+
+    // 5. Guardar al Socio en la Base de Datos
+    $socio = \App\Models\Member::create([
+        'folio' => $folio,
+        'name' => $request->name,
+        'last_name' => $request->last_name,
+        'phone' => $request->phone,
+        'email' => $request->email,
+        'plan_id' => $plan->id,
+        'expiration_date' => $fechaVencimiento,
+        'profile_photo_path' => $rutaImagen,
+        'is_active' => true,
+    ]);
+
+   
+    // 6. Registrar el pago/ingreso incluyendo el folio de pago requerido
+    \App\Models\Payment::create([
+        'member_id' => $socio->id,
+        'plan_id' => $plan->id,
+        'plan_name' => $plan->name,
+        'folio_pago' => 'P-' . str_pad($socio->id, 5, '0', STR_PAD_LEFT), // <--- Genera un folio único para el pago
+        'amount' => $plan->price,
+        'payment_method' => 'Efectivo', 
+    ]);
+
+    // 7. Redirigir al index con mensaje de éxito
+    return redirect()->route('socios.index')->with('success', '¡Socio registrado y pago agregado a finanzas exitosamente!');
+}
     // Mostrar el perfil y gafete del socio
     public function show(\App\Models\Member $member)
     {
@@ -131,52 +141,56 @@ class MemberController extends Controller
         return view('socios.show', compact('member', 'diasRestantes', 'porcentajeProgreso', 'fechaInicio', 'planes', 'pagos', 'ultimosAccesos'));  
         }
             // Procesar la renovación del plan
+    // Procesar la renovación del plan
     public function renew(Request $request, \App\Models\Member $member)
     {
         $request->validate([
             'plan_id' => 'required|exists:plans,id',
             'payment_method' => 'required|in:efectivo,tarjeta',
-            // En la vida real, aquí conectaríamos con Stripe, Conekta o MercadoPago
         ]);
 
         $plan = \App\Models\Plan::find($request->plan_id);
         $hoy = \Carbon\Carbon::today();
 
         $fechaBase = ($member->expiration_date && $member->expiration_date->isFuture()) 
-                        ? $member->expiration_date 
-                        : $hoy;
+                    ? $member->expiration_date 
+                    : $hoy;
 
         $nuevaVigencia = $fechaBase->copy()->addDays($plan->duration_days);
 
+        // 1. Actualizar la membresía del socio
         $member->update([
             'plan_id' => $plan->id,
             'expiration_date' => $nuevaVigencia,
             'is_active' => true,
         ]);
 
-        // ... (código de actualización del member)
-
         $folioPago = 'TXN-' . strtoupper(uniqid());
 
-        // Guardar el historial financiero
+        // 2. ¡LA CLAVE! Registrar el pago en la tabla payments para que alimente Reportes y Flujo de Caja
         \App\Models\Payment::create([
             'member_id' => $member->id,
+            'plan_id' => $plan->id,
             'plan_name' => $plan->name,
-            'amount' => $plan->price,
-            'payment_method' => $request->payment_method,
             'folio_pago' => $folioPago,
+            'amount' => $plan->price,
+            'payment_method' => ucfirst($request->payment_method), // Guarda 'Efectivo' o 'Tarjeta' con la primera letra mayúscula
         ]);
 
-        // Redirigir a la vista de generación del Ticket
-        return redirect()->route('socios.ticket', [
-            'member' => $member->id,
-            'plan_name' => $plan->name,
-            'amount' => $plan->price,
-            'method' => $request->payment_method,
-            'folio_pago' => $folioPago // Usamos el folio real guardado
+        // 3. Construir la URL del ticket
+        $urlTicket = route('socios.ticket', [
+            $member->id,                        
+            'plan_name'  => $plan->name,            
+            'amount'     => $plan->price,           
+            'method'     => $request->payment_method, 
+            'folio_pago' => $folioPago
         ]);
+
+        // 4. Redirigir al perfil del socio con éxito e impresión del ticket
+        return redirect()->route('socios.show', $member->id)
+                         ->with('success', 'Pago registrado, plan renovado y agregado a finanzas exitosamente.')
+                         ->with('imprimir_ticket', $urlTicket);
     }
-    // Mostrar la vista del ticket para imprimir
     public function ticket(Request $request, \App\Models\Member $member)
     {
         // Recogemos los datos que mandamos por la URL
@@ -197,6 +211,68 @@ class MemberController extends Controller
         // Se asume que el modelo se llama AccessLog. Ajusta el nombre si en tu proyecto se llama diferente.
         $accesos = \App\Models\AccessLog::where('member_id', $member->id)->latest()->paginate(15);
         return view('socios.accesos', compact('member', 'accesos'));
+    }
+
+    // =========================================================
+    // MOSTRAR FORMULARIO DE EDICIÓN
+    // =========================================================
+    public function edit($id)
+    {
+        // Buscamos al socio
+        $member = \App\Models\Member::findOrFail($id);
+        
+        // Traemos los planes activos por si en la edición quieres cambiarle el plan
+        $planes = \App\Models\Plan::where('is_active', true)->get();
+
+        // Retornamos la vista de editar (asegúrate de tener este archivo creado)
+        return view('socios.edit', compact('member', 'planes'));
+    }
+
+    // =========================================================
+    // GUARDAR LOS CAMBIOS DEL SOCIO
+    // =========================================================
+    public function update(\Illuminate\Http\Request $request, $id)
+    {
+        // Buscamos al socio
+        $member = \App\Models\Member::findOrFail($id);
+
+        // Validamos que por lo menos el nombre y apellido vengan llenos
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            // Si tienes más campos obligatorios, puedes agregarlos aquí
+        ]);
+
+        // Actualizamos todos los datos que vengan en el formulario
+        $member->update($request->all());
+
+        // Regresamos a la lista con un mensaje de éxito
+        return redirect()->route('socios.index')->with('success', 'Los datos del socio se actualizaron correctamente.');
+    }
+    // =========================================================
+    // ELIMINAR SOCIO (CON PROTECCIÓN FINANCIERA)
+    // =========================================================
+    public function destroy($id)
+    {
+        try {
+            // Buscamos al socio en la base de datos
+            $member = \App\Models\Member::findOrFail($id);
+            
+            // Intentamos eliminarlo
+            $member->delete();
+
+            // Si se borra bien, regresamos con éxito
+            return redirect()->route('socios.index')->with('success', 'El socio fue eliminado correctamente del sistema.');
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            // SEGURIDAD: Si el socio ya tiene pagos o accesos registrados en la BD, MySQL bloqueará el borrado.
+            // Lo atrapamos aquí para que no salga una pantalla de error como la que te salió.
+            return redirect()->route('socios.index')->with('error', '🛡️ ¡ALERTA DE SEGURIDAD! No se puede eliminar a este socio porque ya tiene historial de pagos o accesos. Por seguridad, edita su perfil y márcalo como "Inactivo".');
+            
+        } catch (\Exception $e) {
+            // Cualquier otro error raro
+            return redirect()->route('socios.index')->with('error', 'Ocurrió un error inesperado al intentar eliminar al socio.');
+        }
     }
     
 }

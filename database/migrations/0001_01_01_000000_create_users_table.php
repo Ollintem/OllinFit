@@ -14,9 +14,14 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('last_name')->nullable(); // Campo de empleado unificado
             $table->string('email')->unique();
+            $table->string('phone')->nullable();     // Campo de empleado unificado
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->date('hire_date')->nullable();   // Campo de empleado unificado
+            $table->string('profile_photo_path')->nullable(); // Campo de empleado unificado
+            $table->boolean('is_active')->default(true);      // Campo de empleado unificado
             $table->rememberToken();
             $table->timestamps();
         });

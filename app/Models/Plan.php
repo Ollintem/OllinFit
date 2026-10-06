@@ -23,4 +23,9 @@ class Plan extends Model
         'is_active' => 'boolean',
         'price' => 'decimal:2',
     ];
+    public function members()
+    {
+        // Un plan tiene muchos socios
+        return $this->hasMany(Member::class);
+}
 }
