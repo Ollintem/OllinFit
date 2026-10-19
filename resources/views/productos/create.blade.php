@@ -1,5 +1,5 @@
 <x-app-layout>
-    <div class="max-w-4xl mx-auto p-6 space-y-6" x-data="{ tipo: 'Tienda' }">
+    <div class="max-w-4xl mx-auto p-6 space-y-6" x-data="{ tipo: '0' }">
         
         <div class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div>
@@ -25,18 +25,18 @@
                     <input type="number" step="0.01" name="price" required placeholder="0.00" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-800 focus:ring-orange-500 focus:border-orange-500">
                 </div>
 
-                
                 <!-- Tipo de Artículo -->
-<div>
-    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tipo de Artículo *</label>
-   <select name="is_service" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800">
-    <option value="0">Extras (Tienda)</option>
-    <option value="1">Accesos y Pases</option>
-</select>
-
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tipo de Artículo *</label>
+                    <select name="is_service" x-model="tipo" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800">
+                        <option value="0">Extras (Tienda)</option>
+                        <option value="1">Accesos y Pases</option>
+                    </select>
+                </div>
+            </div>
 
             <!-- CAMPOS DINÁMICOS: Solo se muestran si es de Tienda -->
-            <div x-show="tipo === 'Tienda'" class="space-y-6 pt-4 border-t border-gray-100">
+            <div x-show="tipo === '0'" class="space-y-6 pt-4 border-t border-gray-100" x-transition>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Fotografía del Producto</label>
                     <input type="file" name="image" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-xs text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 cursor-pointer">
@@ -45,11 +45,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Stock Inicial *</label>
-                        <input type="number" name="stock" value="10" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-800">
+                        <input type="number" name="stock" value="10" :required="tipo === '0'" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-800">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Stock Mínimo (Alerta) *</label>
-                        <input type="number" name="min_stock" value="5" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-800">
+                        <input type="number" name="min_stock" value="5" :required="tipo === '0'" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-800">
                     </div>
                 </div>
             </div>

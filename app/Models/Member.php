@@ -59,4 +59,6 @@ class Member extends Model
             }
         );
     }
+    
+    
 }

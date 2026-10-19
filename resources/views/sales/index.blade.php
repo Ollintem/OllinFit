@@ -8,12 +8,24 @@
         showTicketModal: false,
         ticketData: null,
     
-        addItem(id, name, price) {
+        addItem(id, name, price, stock = null) {
+            // Validación: si el producto tiene stock <= 0, no se permite agregar
+            if (stock !== null && stock <= 0) {
+                this.errorMessage = 'Producto agotado. No hay unidades en inventario.';
+                setTimeout(() => { this.errorMessage = null; }, 4000);
+                return;
+            }
+
             let existing = this.cart.find(item => item.id === id);
             if (existing) {
+                if (stock !== null && existing.quantity >= stock) {
+                    this.errorMessage = `Límite alcanzado. Solo hay ${stock} unidades disponibles.`;
+                    setTimeout(() => { this.errorMessage = null; }, 4000);
+                    return;
+                }
                 existing.quantity++;
             } else {
-                this.cart.push({ id, name, price, quantity: 1 });
+                this.cart.push({ id, name, price, quantity: 1, stock });
             }
         },
     
@@ -30,9 +42,7 @@
             if (this.cart.length === 0) return;
     
             if (this.paymentMethod === 'Efectivo' && (parseFloat(this.cashReceived) || 0) < this.total) {
-                this.errorMessage = 'El efectivo recibido es menor al total a cobrar.'; // <-- Reemplaza el alert por esto
-    
-                // Opcional: hace que desaparezca automáticamente después de 4 segundos
+                this.errorMessage = 'El efectivo recibido es menor al total a cobrar.';
                 setTimeout(() => { this.errorMessage = null; }, 4000);
                 return;
             }
@@ -90,7 +100,7 @@
             window.location.reload();
         }
     }">
-        <!-- Alerta flotante moderna con Alpine.js -->
+        <!-- Alerta flotante moderna -->
         <template x-if="errorMessage">
             <div
                 class="fixed top-5 right-5 z-50 flex items-center gap-3 px-4 py-3 bg-red-50 text-red-800 border border-red-200 rounded-xl shadow-lg transition-all">
@@ -99,6 +109,7 @@
                 <button @click="errorMessage = null" class="ml-4 text-red-400 hover:text-red-700 font-bold">×</button>
             </div>
         </template>
+
         <!-- Encabezado -->
         <div
             class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -127,23 +138,23 @@
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <?php
-                        $accesos = isset($productos) ? $productos->where('is_service', 1) : collect();
+                        $accesos = isset($productos) ?$productos->where('is_service', 1) : collect();
                         ?>
                         <?php if($accesos->count() > 0): ?>
-                        <?php foreach($accesos as$acc): ?>
-                        <button @click="addItem(<?php echo $acc->id; ?>, '<?php echo addslashes($acc->name); ?>', <?php echo $acc->price; ?>)"
-                            class="bg-white hover:border-orange-400 border border-gray-200 p-5 rounded-2xl text-center transition-all cursor-pointer group flex flex-col items-center justify-between shadow-xs">
-                            <div
-                                class="w-12 h-12 mb-3 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center font-bold text-lg">
-                                👤
-                            </div>
-                            <span
-                                class="font-bold text-gray-800 group-hover:text-orange-600 text-sm"><?php echo htmlspecialchars($acc->name); ?></span>
-                            <span class="text-sm font-extrabold text-orange-600 mt-2 block">$<?php echo number_format($acc->price, 2); ?></span>
-                        </button>
-                        <?php endforeach; ?>
+                            <?php foreach($accesos as$acc): ?>
+                                <button @click="addItem(<?php echo $acc->id; ?>, '<?php echo addslashes($acc->name); ?>', <?php echo$acc->price; ?>)"
+                                    class="bg-white hover:border-orange-400 border border-gray-200 p-5 rounded-2xl text-center transition-all cursor-pointer group flex flex-col items-center justify-between shadow-xs">
+                                    <div
+                                        class="w-12 h-12 mb-3 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center font-bold text-lg">
+                                        👤
+                                    </div>
+                                    <span
+                                        class="font-bold text-gray-800 group-hover:text-orange-600 text-sm"><?php echo htmlspecialchars($acc->name); ?></span>
+                                    <span class="text-sm font-extrabold text-orange-600 mt-2 block">$<?php echo number_format($acc->price, 2); ?></span>
+                                </button>
+                            <?php endforeach; ?>
                         <?php else: ?>
-                        <p class="text-xs text-gray-400 col-span-2 text-center py-4">No hay accesos registrados.</p>
+                            <p class="text-xs text-gray-400 col-span-2 text-center py-4">No hay accesos registrados.</p>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -157,39 +168,38 @@
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <?php
-                        $tienda = isset($productos) ? $productos->where('is_service', 0) : collect();
+                        $tienda = isset($productos) ?$productos->where('is_service', 0) : collect();
                         ?>
                         <?php if($tienda->count() > 0): ?>
-                        <?php foreach($tienda as$prod): ?>
-                        <button @click="addItem(<?php echo $prod->id; ?>, '<?php echo addslashes($prod->name); ?>', <?php echo $prod->price; ?>)"
-                            class="bg-white hover:border-emerald-400 border border-gray-200 p-5 rounded-2xl text-center transition-all cursor-pointer group flex flex-col items-center justify-between shadow-xs">
-                            <div
-                                class="w-16 h-16 mb-3 rounded-xl bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center">
-                                <?php if(!empty($prod->image_path)): ?>
-                                <img src="<?php echo asset('storage/' . $prod->image_path); ?>" class="w-full h-full object-cover">
-                                <?php else: ?>
-                                <span class="text-lg">📦</span>
-                                <?php endif; ?>
-                            </div>
+                            <?php foreach($tienda as$prod): ?>
+                                <button @click="addItem(<?php echo $prod->id; ?>, '<?php echo addslashes($prod->name); ?>', <?php echo $prod->price; ?>, <?php echo$prod->stock; ?>)"
+                                    :disabled="<?php echo $prod->stock; ?> <= 0"
+                                    class="bg-white hover:border-emerald-400 border border-gray-200 p-5 rounded-2xl text-center transition-all cursor-pointer group flex flex-col items-center justify-between shadow-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <div
+                                        class="w-16 h-16 mb-3 rounded-xl bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center">
+                                        <?php if(!empty($prod->image_path)): ?>
+                                            <img src="<?php echo asset('storage/' . $prod->image_path); ?>" class="w-full h-full object-cover">
+                                        <?php else: ?>
+                                            <span class="text-lg">📦</span>
+                                        <?php endif; ?>
+                                    </div>
 
-                            <span
-                                class="font-bold text-gray-800 group-hover:text-emerald-600 text-sm"><?php echo htmlspecialchars($prod->name); ?></span>
+                                    <span
+                                        class="font-bold text-gray-800 group-hover:text-emerald-600 text-sm"><?php echo htmlspecialchars($prod->name); ?></span>
 
-                            <div class="my-1">
-                                <?php if($prod->stock <= ($prod->min_stock ?? 5)): ?>
-                                <span class="text-[10px] font-bold text-rose-500">Stock: <?php echo $prod->stock; ?>
-                                    (Bajo)</span>
-                                <?php else: ?>
-                                <span class="text-[10px] font-bold text-gray-400">Stock: <?php echo $prod->stock; ?></span>
-                                <?php endif; ?>
-                            </div>
+                                    <div class="my-1">
+                                        <?php if($prod->stock <= ($prod->min_stock ?? 5)): ?>
+                                            <span class="text-[10px] font-bold text-rose-500">Stock: <?php echo $prod->stock; ?> (Bajo)</span>
+                                        <?php else: ?>
+                                            <span class="text-[10px] font-bold text-gray-400">Stock: <?php echo $prod->stock; ?></span>
+                                        <?php endif; ?>
+                                    </div>
 
-                            <span class="text-sm font-extrabold text-emerald-600 block">$<?php echo number_format($prod->price, 2); ?></span>
-                        </button>
-                        <?php endforeach; ?>
+                                    <span class="text-sm font-extrabold text-emerald-600 block">$<?php echo number_format($prod->price, 2); ?></span>
+                                </button>
+                            <?php endforeach; ?>
                         <?php else: ?>
-                        <p class="text-xs text-gray-400 col-span-2 text-center py-4">No hay productos en tienda
-                            registrados.</p>
+                            <p class="text-xs text-gray-400 col-span-2 text-center py-4">No hay productos en tienda registrados.</p>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -208,16 +218,40 @@
 
                     <div class="space-y-3 max-h-64 overflow-y-auto pr-1">
                         <template x-for="(item, index) in cart" :key="index">
-                            <div class="flex justify-between items-center bg-gray-50 p-3 rounded-xl text-xs">
-                                <div>
-                                    <span class="font-bold text-gray-800 block" x-text="item.name"></span>
-                                    <span class="text-gray-400" x-text="`$${item.price} x ${item.quantity}`"></span>
+                            <div class="flex justify-between items-center bg-gray-50/80 p-3 rounded-2xl border border-gray-100 text-xs shadow-2xs">
+                                <!-- Nombre del producto y precio unitario -->
+                                <div class="flex-1 pr-2">
+                                    <span class="font-bold text-gray-800 block truncate" x-text="item.name"></span>
+                                    <span class="text-[10px] text-gray-400 font-medium" x-text="`$${item.price} c/u`"></span>
                                 </div>
+
                                 <div class="flex items-center gap-3">
-                                    <span class="font-extrabold text-gray-800"
-                                        x-text="`$${item.price * item.quantity}`"></span>
-                                    <button @click="cart.splice(index, 1)"
-                                        class="text-gray-400 hover:text-rose-600 font-bold cursor-pointer">×</button>
+                                    <!-- Control de Cantidad tipo Píldora (- QTY +) -->
+                                    <div class="flex items-center bg-white border border-gray-200 rounded-lg p-0.5 shadow-2xs">
+                                        <button type="button" 
+                                                @click="if (item.quantity > 1) { item.quantity-- } else { cart.splice(index, 1) }" 
+                                                class="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors font-bold text-xs cursor-pointer">
+                                            −
+                                        </button>
+                                        
+                                        <span class="w-6 text-center font-extrabold text-gray-800 text-xs" x-text="item.quantity"></span>
+
+                                        <button type="button" 
+                                                @click="if (!item.stock || item.quantity < item.stock) { item.quantity++ } else { errorMessage = 'Alcanzaste el límite de stock disponible.'; setTimeout(() => { errorMessage = null; }, 4000); }" 
+                                                class="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors font-bold text-xs cursor-pointer">
+                                            +
+                                        </button>
+                                    </div>
+
+                                    <!-- Subtotal del ítem -->
+                                    <span class="font-black text-gray-900 min-w-[55px] text-right" x-text="`$${(item.price * item.quantity).toFixed(2)}`"></span>
+
+                                    <!-- Botón Eliminar -->
+                                    <button type="button" 
+                                            @click="cart.splice(index, 1)" 
+                                            class="text-gray-300 hover:text-rose-500 transition-colors font-bold cursor-pointer text-sm pl-1">
+                                        ✕
+                                    </button>
                                 </div>
                             </div>
                         </template>
@@ -245,8 +279,7 @@
                     <template x-if="paymentMethod === 'Efectivo'">
                         <div class="space-y-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-600 uppercase">Efectivo
-                                    Recibido</label>
+                                <label class="block text-[10px] font-bold text-gray-600 uppercase">Efectivo Recibido</label>
                                 <input type="number" step="0.01" x-model="cashReceived" placeholder="0.00"
                                     class="w-full mt-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-bold text-gray-800 focus:ring-orange-500 focus:border-orange-500">
                             </div>
@@ -256,11 +289,11 @@
                                     x-text="`$${change.toFixed(2)}`"></span>
                             </div>
                         </div>
-                    </template><!-- Sección condicional para Tarjeta -->
+                    </template>
+
                     <template x-if="paymentMethod === 'Tarjeta'">
                         <div class="space-y-2 mt-4">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Últimos 4 dígitos de la
-                                Tarjeta</label>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Últimos 4 dígitos de la Tarjeta</label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">💳</span>
                                 <input type="text" x-model="cardReference" maxlength="4" placeholder="Ej. 4589"
@@ -269,7 +302,6 @@
                             <p class="text-[10px] text-gray-400">Requerido para control de caja.</p>
                         </div>
                     </template>
-
 
                     <div class="flex justify-between items-center">
                         <span class="text-sm font-bold text-gray-600">Total a Pagar:</span>
@@ -284,6 +316,7 @@
             </div>
 
         </div>
+
         <!-- MODAL DEL TICKET -->
         <div x-show="showTicketModal"
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 print:p-0 print:bg-white print:fixed print:inset-0"
@@ -320,8 +353,7 @@
                 <div class="flex justify-between items-start border-b border-gray-100 pb-4">
                     <div class="space-y-0.5">
                         <h3 class="font-black text-slate-900 text-lg uppercase tracking-wider">OllinFit</h3>
-                        <p class="text-[11px] font-semibold text-orange-600 uppercase tracking-widest">Centro de Acceso
-                            y Tienda</p>
+                        <p class="text-[11px] font-semibold text-orange-600 uppercase tracking-widest">Centro de Acceso y Tienda</p>
                     </div>
                     <button @click="resetPOS()"
                         class="w-8 h-8 rounded-full bg-gray-100 hover:bg-rose-500 hover:text-white text-gray-500 font-bold flex items-center justify-center transition-colors cursor-pointer print:hidden">✕</button>
@@ -329,12 +361,9 @@
 
                 <!-- Datos generales -->
                 <div class="space-y-1.5 text-xs text-gray-500 border-b border-dashed border-gray-200 pb-4">
-                    <div class="flex justify-between"><span>Folio:</span> <strong class="text-slate-800"
-                            x-text="ticketData?.id"></strong></div>
-                    <div class="flex justify-between"><span>Fecha:</span> <strong class="text-slate-800"
-                            x-text="ticketData?.date"></strong></div>
-                    <div class="flex justify-between"><span>Método de Pago:</span> <strong class="text-slate-800"
-                            x-text="ticketData?.method"></strong></div>
+                    <div class="flex justify-between"><span>Folio:</span> <strong class="text-slate-800" x-text="ticketData?.id"></strong></div>
+                    <div class="flex justify-between"><span>Fecha:</span> <strong class="text-slate-800" x-text="ticketData?.date"></strong></div>
+                    <div class="flex justify-between"><span>Método de Pago:</span> <strong class="text-slate-800" x-text="ticketData?.method"></strong></div>
                 </div>
 
                 <!-- Lista de productos -->
@@ -343,19 +372,16 @@
                         <div class="flex justify-between items-center text-xs">
                             <div>
                                 <span class="font-bold text-slate-800 block" x-text="item.name"></span>
-                                <span class="text-[11px] text-gray-400"
-                                    x-text="`${item.quantity} x $${item.price}`"></span>
+                                <span class="text-[11px] text-gray-400" x-text="`${item.quantity} x $${item.price}`"></span>
                             </div>
-                            <span class="font-extrabold text-slate-900"
-                                x-text="`$${(item.price * item.quantity).toFixed(2)}`"></span>
+                            <span class="font-extrabold text-slate-900" x-text="`$${(item.price * item.quantity).toFixed(2)}`"></span>
                         </div>
                     </template>
                 </div>
 
                 <!-- Totales -->
                 <div class="space-y-2 text-xs pt-1">
-                    <div
-                        class="flex justify-between font-black text-base text-slate-900 border-t border-gray-100 pt-3">
+                    <div class="flex justify-between font-black text-base text-slate-900 border-t border-gray-100 pt-3">
                         <span>TOTAL:</span>
                         <span class="text-emerald-600" x-text="`$${ticketData?.total.toFixed(2)}`"></span>
                     </div>
@@ -363,8 +389,7 @@
                         <div class="space-y-1 pt-1 text-gray-500 bg-gray-50 p-3 rounded-2xl">
                             <div class="flex justify-between">
                                 <span>Efectivo Recibido:</span>
-                                <strong class="text-slate-800"
-                                    x-text="`$${ticketData?.received.toFixed(2)}`"></strong>
+                                <strong class="text-slate-800" x-text="`$${ticketData?.received.toFixed(2)}`"></strong>
                             </div>
                             <div class="flex justify-between text-emerald-700 font-bold">
                                 <span>Cambio Devuelto:</span>
@@ -380,7 +405,7 @@
                     <p class="text-[10px] text-gray-400">Conserva este ticket para cualquier aclaración.</p>
                 </div>
 
-                <!-- Botones de acción (Ocultos al imprimir) -->
+                <!-- Botones de acción -->
                 <div class="flex gap-2 pt-2 print:hidden">
                     <button onclick="window.print()"
                         class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-3 rounded-2xl transition-colors cursor-pointer shadow-md flex items-center justify-center gap-2">

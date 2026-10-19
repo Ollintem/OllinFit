@@ -86,31 +86,57 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('planes/{plan}', [PlanController::class, 'destroy'])->name('planes.destroy')->middleware('permission:eliminar_planes');
 
 
+   // =========================================================
+    // 🛡️ RUTAS PROTEGIDAS POR CAJA ABIERTA (Solo pasan si hay caja)
     // =========================================================
-    // MÓDULO: SOCIOS
-    // =========================================================
+    Route::middleware([\App\Http\Middleware\CheckCashRegisterOpen::class])->group(function () {
+        
+        // 1. Registro de Nuevos Socios (RUTAS ESTÁTICAS ARRIBA)
+        Route::get('socios/create', [MemberController::class, 'create'])->name('socios.create');
+        Route::post('socios', [MemberController::class, 'store'])->name('socios.store');
 
+        // 2. Renovaciones de Membresías
+        Route::post('socios/{id}/renovar', [MemberController::class, 'renovarMensualidad'])->name('socios.renovar');
+        Route::post('socios/{member}/renovar', [MemberController::class, 'renew'])->name('socios.renew');
+
+        // 3. Punto de Venta y Tienda (Cobra ingresos extras)
+        Route::get('punto-de-venta', [SaleController::class, 'index'])->name('sales.index');
+        Route::post('punto-de-venta', [SaleController::class, 'store'])->name('sales.store');
+
+       // 4. Gastos y Compras (Salidas de efectivo)
+        Route::get('gastos', [App\Http\Controllers\ExpenseController::class, 'index'])->name('gastos.index'); 
+        Route::get('gastos/create', [App\Http\Controllers\ExpenseController::class, 'create'])->name('gastos.create');
+        Route::post('gastos', [App\Http\Controllers\ExpenseController::class, 'store'])->name('gastos.store');
+        // NUEVAS RUTAS: Editar, Actualizar y Eliminar
+        Route::get('gastos/{gasto}/edit', [App\Http\Controllers\ExpenseController::class, 'edit'])->name('gastos.edit');
+        Route::put('gastos/{gasto}', [App\Http\Controllers\ExpenseController::class, 'update'])->name('gastos.update');
+        Route::delete('gastos/{id}', [App\Http\Controllers\ExpenseController::class, 'destroy'])->name('gastos.destroy');
+    });
+
+    // =========================================================
+    // MÓDULO: SOCIOS (Rutas libres que NO cobran)
+    // =========================================================
     Route::get('socios', [MemberController::class, 'index'])->name('socios.index');
-    Route::get('socios/create', [MemberController::class, 'create'])->name('socios.create');
-    Route::post('socios', [MemberController::class, 'store'])->name('socios.store');
-    Route::get('socios/{member}', [MemberController::class, 'show'])->name('socios.show');
-
-
+    Route::get('socios/{id}/datos-renovacion', [MemberController::class, 'obtenerDatosRenovacion']);
+    
+    // RUTAS DINÁMICAS (Con variables)
     Route::get('socios/{member}/edit', [MemberController::class, 'edit'])->name('socios.edit');
     Route::put('socios/{member}', [MemberController::class, 'update'])->name('socios.update');
     Route::delete('socios/{member}', [MemberController::class, 'destroy'])->name('socios.destroy');
-
-    // Rutas extra del perfil del socio
-    Route::post('socios/{member}/renovar', [MemberController::class, 'renew'])->name('socios.renew');
     Route::get('socios/{member}/ticket', [MemberController::class, 'ticket'])->name('socios.ticket');
     Route::get('socios/{member}/pagos', [MemberController::class, 'payments'])->name('socios.pagos');
     Route::get('socios/{member}/accesos', [MemberController::class, 'accesses'])->name('socios.accesos');
 
+    // ⚠️ ATENCIÓN: Esta ruta es un "comodín" ({member}). 
+    // DEBE IR SIEMPRE HASTA EL FINAL para no chocar con las demás.
+    Route::get('socios/{member}', [MemberController::class, 'show'])->name('socios.show');
 
     // MÓDULO: CONTROL DE ACCESO
     Route::get('/acceso', [App\Http\Controllers\AccessController::class, 'index'])->name('acceso.index');
     Route::post('/acceso/escanear', [App\Http\Controllers\AccessController::class, 'scan'])->name('acceso.scan');
     Route::post('/acceso/liberar/{member}', [App\Http\Controllers\AccessController::class, 'release'])->name('acceso.release');
+
+
 
     // =========================================================
     // MÓDULO: PUNTO DE VENTA (INVENTARIO DE PRODUCTOS)
@@ -121,11 +147,20 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('productos/{product}/edit', [ProductController::class, 'edit'])->name('productos.edit');
     Route::put('productos/{product}', [ProductController::class, 'update'])->name('productos.update');
     Route::delete('productos/{product}', [ProductController::class, 'destroy'])->name('productos.destroy');
+
+   // =========================================================
+    // MÓDULO: PROVEEDORES
+    // =========================================================
+    Route::get('proveedores', [App\Http\Controllers\SupplierController::class, 'index'])->name('proveedores.index');
+    Route::post('proveedores', [App\Http\Controllers\SupplierController::class, 'store'])->name('proveedores.store');
+    Route::put('proveedores/{proveedor}', [App\Http\Controllers\SupplierController::class, 'update'])->name('proveedores.update'); // <-- NUEVA
+    Route::delete('proveedores/{proveedor}', [App\Http\Controllers\SupplierController::class, 'destroy'])->name('proveedores.destroy');
+
+
     // =========================================================
     // MÓDULO: PUNTO DE VENTA (VENTAS / CAJA)
     // =========================================================
-    Route::get('punto-de-venta', [SaleController::class, 'index'])->name('sales.index');
-    Route::post('punto-de-venta', [SaleController::class, 'store'])->name('sales.store');
+    Route::get('punto-de-venta/{sale}/ticket', [SaleController::class, 'ticket'])->name('sales.ticket');
     // Nota: Más adelante podemos agregarle los middlewares de permission 
     // a estas rutas (ej. 'crear_roles', 'mostrar_roles') igual que a empleados.
     Route::middleware(['auth'])->group(function () {
@@ -137,7 +172,12 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/flujo-de-caja/abrir', [CashRegisterController::class, 'open'])->name('caja.open');
         Route::post('/flujo-de-caja/cerrar', [CashRegisterController::class, 'close'])->name('caja.close');
     });
+    Route::get('/flujo-de-caja/historial', [CashRegisterController::class, 'historial'])->name('caja.historial');
+
+    // Ruta para generar el modal dinámico
+    Route::get('punto-de-venta/{sale}/datos-ticket', [SaleController::class, 'getTicketData'])->name('sales.ticket.data');
+    Route::get('ventas/historial', [SaleController::class, 'history'])->name('sales.history');
+
 });
-Route::get('/flujo-de-caja/historial', [CashRegisterController::class, 'historial'])->name('caja.historial');
 
 require __DIR__ . '/auth.php';

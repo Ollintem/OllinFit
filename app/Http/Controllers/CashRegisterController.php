@@ -13,66 +13,78 @@ use Illuminate\Support\Facades\Auth;
 class CashRegisterController extends Controller
 {
     public function index()
-{
-    // Buscar si hay una caja abierta actualmente
-    $cajaActiva = CashRegister::where('status', 'abierta')->latest()->first();
-    
-    $ingresosEfectivoTurno = 0;
-    $ingresosTarjetaTurno = 0;
-    $ventasTurnoCount = 0;
-    $detalleTransacciones = collect();
+    {
+        $cajaActiva = \App\Models\CashRegister::where('status', 'abierta')->latest()->first();
+        // NUEVO: Buscamos cuál fue el último turno cerrado
+        $ultimoTurno = \App\Models\CashRegister::where('status', 'cerrada')->latest()->first();
 
-    if ($cajaActiva) {
-        // Calcular ingresos desde que se abrió la caja hasta ahora
-        $desde = $cajaActiva->opened_at;
-        
-        // 1. Ventas POS (Efectivo y Tarjeta)
-        $ventasPos = Sale::where('created_at', '>=', $desde)
-            ->get()
-            ->map(function($item) {
-                $item->origen = 'Punto de Venta';
-                $item->monto = $item->total;
-                $item->concepto_id = 'Ticket #' . $item->id;
-                return $item;
+        if ($cajaActiva) {
+            $desde = $cajaActiva->opened_at;
+
+            // 1. Calcular Ingresos en EFECTIVO
+            $ventasEfectivo = \App\Models\Sale::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde);
+            $pagosMembresiasEfectivo = \App\Models\Payment::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde);
+            
+            $sociosNuevosIds = \App\Models\Member::where('created_at', '>=', $desde)->pluck('plan_id');
+            $montoSocios = \App\Models\Plan::whereIn('id', $sociosNuevosIds)->sum('price') ?? 0;
+            
+            $ingresosEfectivoTurno = $ventasEfectivo->sum('total') + $pagosMembresiasEfectivo->sum('amount') + $montoSocios;
+
+            // 2. Variables de la Vista (Conteos y Tarjetas)
+            $ventasTurnoCount = \App\Models\Sale::where('created_at', '>=', $desde)->count() + \App\Models\Payment::where('created_at', '>=', $desde)->count();
+            
+            $ventasTarjeta = \App\Models\Sale::where('payment_method', '!=', 'Efectivo')->where('created_at', '>=', $desde)->sum('total');
+            $pagosTarjeta = \App\Models\Payment::where('payment_method', '!=', 'Efectivo')->where('created_at', '>=', $desde)->sum('amount');
+            $ingresosTarjetaTurno = $ventasTarjeta + $pagosTarjeta;
+
+            // 3. EGRESOS Y GASTOS 
+            $gastosTurno = \App\Models\Expense::with(['user', 'supplier'])
+                            ->where('cash_register_id', $cajaActiva->id)
+                            ->latest()
+                            ->get();
+                            
+            $egresosEfectivo = $gastosTurno->where('payment_method', 'Efectivo')->sum('amount');
+
+            // 4. Matemática en vivo de la caja
+            $expectedAmount = ($cajaActiva->opening_amount + $ingresosEfectivoTurno) - $egresosEfectivo;
+
+            // 5. RESTAURAR EL DETALLE DE TRANSACCIONES (Para la tabla de ingresos)
+            $ventas = \App\Models\Sale::where('created_at', '>=', $desde)->get()->map(function($sale) {
+                return (object) [
+                    'created_at' => $sale->created_at,
+                    'concepto_id' => 'Venta de Productos / POS',
+                    'origen' => $sale->payment_method,
+                    'monto' => $sale->total
+                ];
             });
 
-        // 2. Pagos de membresías (Efectivo y Tarjeta)
-        $pagosMembresias = Payment::where('created_at', '>=', $desde)
-            ->get()
-            ->map(function($item) {
-                $item->origen = 'Membresía / Plan';
-                $item->monto = $item->amount ?? $item->total ?? 0;
-                $item->concepto_id = 'Pago #' . $item->id;
-                return $item;
+            $pagos = \App\Models\Payment::where('created_at', '>=', $desde)->get()->map(function($pago) {
+                return (object) [
+                    'created_at' => $pago->created_at,
+                    'concepto_id' => 'Pago de Membresía',
+                    'origen' => $pago->payment_method,
+                    'monto' => $pago->amount
+                ];
             });
 
-        // 3. Inscripciones de socios
-        $sociosNuevos = Member::with('plan')
-            ->where('created_at', '>=', $desde)
-            ->get()
-            ->map(function($socio) {
-                $item = new \stdClass();
-                $item->origen = 'Inscripción Socio';
-                $item->id = $socio->id;
-                $item->created_at = $socio->created_at;
-                $item->payment_method = 'Efectivo'; // O el método que maneje por defecto la inscripción
-                $item->monto = $socio->plan->price ?? 0;
-                $item->concepto_id = $socio->folio . ' (' . $socio->name . ')';
-                return $item;
-            });
+            $detalleTransacciones = $ventas->concat($pagos)->sortByDesc('created_at');
 
-        // Combinar todas las transacciones del turno
-        $detalleTransacciones = $ventasPos->concat($pagosMembresias)->concat($sociosNuevos)->sortByDesc('created_at');
-        
-        // Calcular totales separados por método de pago
-        $ingresosEfectivoTurno = $detalleTransacciones->where('payment_method', 'Efectivo')->sum('monto');
-        $ingresosTarjetaTurno = $detalleTransacciones->where('payment_method', 'Tarjeta')->sum('monto');
-        
-        $ventasTurnoCount = $detalleTransacciones->count();
+            return view('caja.index', compact(
+                'cajaActiva', 
+                'ultimoTurno', // <-- Añadido aquí
+                'ingresosEfectivoTurno', 
+                'ventasTurnoCount', 
+                'ingresosTarjetaTurno', 
+                'gastosTurno', 
+                'egresosEfectivo', 
+                'expectedAmount',
+                'detalleTransacciones' 
+            ));
+        }
+
+        // NUEVO: Le pasamos la variable también cuando la caja está cerrada
+        return view('caja.index', compact('cajaActiva', 'ultimoTurno'));
     }
-
-    return view('caja.index', compact('cajaActiva', 'ingresosEfectivoTurno', 'ingresosTarjetaTurno', 'ventasTurnoCount', 'detalleTransacciones'));
-}
     public function open(Request $request)
     {
         $request->validate([
@@ -112,10 +124,17 @@ class CashRegisterController extends Controller
         $pagosMembresias = Payment::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde)->sum('amount');
         
         $sociosNuevosIds = Member::where('created_at', '>=', $desde)->pluck('plan_id');
-        $montoSocios = \App\Models\Plan::whereIn('id', $sociosNuevosIds)->sum('price') ?? 0; // Aproximación segura o cálculo de planes
+        $montoSocios = \App\Models\Plan::whereIn('id', $sociosNuevosIds)->sum('price') ?? 0;
 
         $ingresosEfectivoTurno = $ventasPos + $pagosMembresias + $montoSocios;
-        $expectedAmount = $cajaActiva->opening_amount + $ingresosEfectivoTurno;
+
+        // NUEVO: Restamos los gastos en efectivo que salieron de esta caja
+        $egresosEfectivo = \App\Models\Expense::where('cash_register_id', $cajaActiva->id)
+                            ->where('payment_method', 'Efectivo')
+                            ->sum('amount');
+
+        // MATEMÁTICA FINAL DE CAJA: Fondo Inicial + Ingresos - Egresos
+        $expectedAmount = ($cajaActiva->opening_amount + $ingresosEfectivoTurno) - $egresosEfectivo;
         
         $closingAmount = $request->closing_amount;
         $difference = $closingAmount - $expectedAmount; // Positivo = Sobrante, Negativo = Faltante
@@ -125,7 +144,7 @@ class CashRegisterController extends Controller
             'expected_amount' => $expectedAmount,
             'difference' => $difference,
             'status' => 'cerrada',
-            'closed_at' => Carbon::now(),
+            'closed_at' => \Carbon\Carbon::now(),
         ]);
 
         return redirect()->route('caja.index')->with('success', '¡Caja cerrada y corte registrado con éxito!');

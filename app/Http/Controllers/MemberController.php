@@ -7,25 +7,53 @@ use Illuminate\Http\Request;
 
 class MemberController extends Controller
 {
-    public function index(Request $request)
+    public function index(\Illuminate\Http\Request $request)
     {
-        // 1. Atrapamos lo que el usuario escribió en el buscador
+        // 1. Atrapamos los filtros enviados por la vista
         $busqueda = $request->input('search');
+        $estado = $request->input('estado');
+        $planId = $request->input('plan_id');
 
-        // 2. Hacemos la consulta inteligente
+        // 2. Hacemos la consulta inteligente con los filtros aplicados
         $socios = Member::with('plan')
             ->when($busqueda, function ($query, $busqueda) {
-                // Si hay texto, buscamos coincidencias
-                return $query->where('name', 'LIKE', "%{$busqueda}%")
-                             ->orWhere('last_name', 'LIKE', "%{$busqueda}%")
-                             ->orWhere('folio', 'LIKE', "%{$busqueda}%");
+                // Agrupamos la búsqueda en un closure para que no rompa los demás filtros
+                return $query->where(function($q) use ($busqueda) {
+                    $q->where('name', 'LIKE', "%{$busqueda}%")
+                      ->orWhere('last_name', 'LIKE', "%{$busqueda}%")
+                      ->orWhere('folio', 'LIKE', "%{$busqueda}%");
+                });
             })
-            // Ordenamos por los más recientes primero y paginamos de 10 en 10
+            ->when($estado, function ($query, $estado) {
+                $hoy = now()->startOfDay();
+                if ($estado === 'activos') {
+                    return $query->where('is_active', true)->whereDate('expiration_date', '>=', $hoy);
+                } elseif ($estado === 'vencidos') {
+                    return $query->where('is_active', true)->whereDate('expiration_date', '<', $hoy);
+                } elseif ($estado === 'inactivos') {
+                    return $query->where('is_active', false);
+                }
+            })
+            ->when($planId, function ($query, $planId) {
+                return $query->where('plan_id', $planId);
+            })
             ->latest('id')
             ->paginate(10) 
-            ->withQueryString(); // Esto mantiene la palabra buscada al cambiar de página
+            ->withQueryString();
 
-        return view('socios.index', compact('socios'));
+        // 3. Calculamos los KPIs (Se mantiene igual)
+        $hoy = now();
+        $totalActivos = Member::where('is_active', true)->whereDate('expiration_date', '>=', $hoy)->count();
+        $totalVencidos = Member::where('is_active', true)->whereDate('expiration_date', '<', $hoy)->count();
+        $totalPorVencer = Member::where('is_active', true)
+                                ->whereDate('expiration_date', '>=', $hoy)
+                                ->whereDate('expiration_date', '<=', $hoy->copy()->addDays(5))
+                                ->count();
+
+        // 4. NUEVO: Traemos todos los planes para llenar el select del filtro
+        $planes = \App\Models\Plan::all();
+
+        return view('socios.index', compact('socios', 'totalActivos', 'totalVencidos', 'totalPorVencer', 'planes'));
     }
     // Mostrar formulario para crear socio
     public function create()
@@ -44,61 +72,90 @@ class MemberController extends Controller
         return view('socios.create', compact('folio', 'fechaRegistro', 'planes'));
     }
     // Guardar el nuevo socio en la base de datos
+   // Guardar el nuevo socio en la base de datos
     public function store(Request $request)
-{
-    // 1. Validar los datos
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'last_name' => 'required|string|max:255',
-        'phone' => 'required|string|max:20',
-        'email' => 'nullable|email|max:255|unique:members,email',
-        'plan_id' => 'required|exists:plans,id',
-        'photo' => 'nullable|mimes:jpeg,png,jpg,webp|max:5120',
-    ]);
+    {
+        // 1. Validar los datos
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'phone' => 'required|string|max:20',
+            'email' => 'nullable|email|max:255|unique:members,email',
+            'plan_id' => 'required|exists:plans,id',
+            'photo' => 'nullable|mimes:jpeg,png,jpg,webp|max:5120',
+            'payment_method' => 'required|in:efectivo,tarjeta',
+            'amount_received' => 'nullable|numeric|min:0', // El efectivo recibido
+        ]);
 
-    // 2. Generar el Folio de forma segura en el backend
-    $ultimoSocio = \App\Models\Member::latest('id')->first();
-    $siguienteId = $ultimoSocio ? $ultimoSocio->id + 1 : 1;
-    $folio = 'MX-' . str_pad($siguienteId + 9000, 4, '0', STR_PAD_LEFT);
+        $plan = \App\Models\Plan::find($request->plan_id);
 
-    // 3. Obtener el plan y calcular la fecha de vencimiento y precio
-    $plan = \App\Models\Plan::find($request->plan_id);
-    $fechaVencimiento = \Carbon\Carbon::today()->addDays($plan->duration_days);
+        // 🚨 CANDADO DE SEGURIDAD FINANCIERA 🚨
+        // Si el método es efectivo, el cajero DEBE registrar cuánto dinero físico recibió, y debe alcanzar.
+        if (strtolower($request->payment_method) === 'efectivo') {
+            $recibido = (float) $request->amount_received;
+            $precio = (float) $plan->price;
 
-    // 4. Guardar la fotografía si existe
-    $rutaImagen = null;
-    if ($request->hasFile('photo')) {
-        $nombreArchivo = uniqid('socio_') . '.webp';
-        $rutaImagen = $request->file('photo')->storeAs('socios', $nombreArchivo, 'public');
+            if ($recibido < $precio) {
+                return back()->with('error', 'El efectivo recibido ($' . number_format($recibido, 2) . ') no es suficiente para cubrir el costo del plan ($' . number_format($precio, 2) . ').');
+            }
+        }
+
+        // 2. Generar el Folio de forma segura en el backend
+        $ultimoSocio = \App\Models\Member::latest('id')->first();
+        $siguienteId = $ultimoSocio ? $ultimoSocio->id + 1 : 1;
+        $folio = 'MX-' . str_pad($siguienteId + 9000, 4, '0', STR_PAD_LEFT);
+
+        // 3. Calcular la fecha de vencimiento
+        $fechaVencimiento = \Carbon\Carbon::today()->addDays($plan->duration_days);
+
+        // 4. Guardar la fotografía si existe
+        $rutaImagen = null;
+        if ($request->hasFile('photo')) {
+            $nombreArchivo = uniqid('socio_') . '.webp';
+            $rutaImagen = $request->file('photo')->storeAs('socios', $nombreArchivo, 'public');
+        }
+
+        // 5. Guardar al Socio en la Base de Datos
+        $socio = \App\Models\Member::create([
+            'folio' => $folio,
+            'name' => $request->name,
+            'last_name' => $request->last_name,
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'plan_id' => $plan->id,
+            'expiration_date' => $fechaVencimiento,
+            'profile_photo_path' => $rutaImagen,
+            'is_active' => true,
+        ]);
+
+        // 6. Registrar la VENTA EXACTA en el Punto de Venta
+        // Ojo: En la base de datos se guarda lo que cuesta el plan (el ingreso real), no el billete grande que te dieron.
+        $sale = \App\Models\Sale::create([
+            'user_id' => \Illuminate\Support\Facades\Auth::id() ?? 1,
+            'total' => $plan->price,
+            'payment_method' => ucfirst($request->payment_method),
+        ]);
+
+        // Opcional: Si quieres guardar los detalles del pago de la membresía en la tabla "payments"
+        // para tener el historial del socio (Fase 3)
+        $folioPago = 'TXN-' . strtoupper(uniqid());
+        \App\Models\Payment::create([
+            'member_id' => $socio->id,
+            'plan_id' => $plan->id,
+            'plan_name' => $plan->name,
+            'folio_pago' => $folioPago,
+            'amount' => $plan->price,
+            'payment_method' => ucfirst($request->payment_method), 
+        ]);
+
+        $ticketUrl = route('sales.ticket', $sale->id);
+
+        // 7. Redirigir al index con mensaje y activar la impresión automática del ticket
+        return redirect()->route('socios.index')->with([
+            'success' => '¡Socio registrado y pago de $'. number_format($plan->price, 2) .' agregado a la caja exitosamente!',
+            'imprimir_ticket' => $ticketUrl
+        ]);
     }
-
-    // 5. Guardar al Socio en la Base de Datos
-    $socio = \App\Models\Member::create([
-        'folio' => $folio,
-        'name' => $request->name,
-        'last_name' => $request->last_name,
-        'phone' => $request->phone,
-        'email' => $request->email,
-        'plan_id' => $plan->id,
-        'expiration_date' => $fechaVencimiento,
-        'profile_photo_path' => $rutaImagen,
-        'is_active' => true,
-    ]);
-
-   
-    // 6. Registrar el pago/ingreso incluyendo el folio de pago requerido
-    \App\Models\Payment::create([
-        'member_id' => $socio->id,
-        'plan_id' => $plan->id,
-        'plan_name' => $plan->name,
-        'folio_pago' => 'P-' . str_pad($socio->id, 5, '0', STR_PAD_LEFT), // <--- Genera un folio único para el pago
-        'amount' => $plan->price,
-        'payment_method' => 'Efectivo', 
-    ]);
-
-    // 7. Redirigir al index con mensaje de éxito
-    return redirect()->route('socios.index')->with('success', '¡Socio registrado y pago agregado a finanzas exitosamente!');
-}
     // Mostrar el perfil y gafete del socio
     public function show(\App\Models\Member $member)
     {
@@ -228,26 +285,39 @@ class MemberController extends Controller
         return view('socios.edit', compact('member', 'planes'));
     }
 
+ 
     // =========================================================
     // GUARDAR LOS CAMBIOS DEL SOCIO
     // =========================================================
     public function update(\Illuminate\Http\Request $request, $id)
     {
-        // Buscamos al socio
         $member = \App\Models\Member::findOrFail($id);
 
-        // Validamos que por lo menos el nombre y apellido vengan llenos
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name'      => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            // Si tienes más campos obligatorios, puedes agregarlos aquí
+            'phone'     => 'nullable|string|max:20',
+            'email'     => 'nullable|email|max:255',
+            'photo'     => 'nullable|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
 
-        // Actualizamos todos los datos que vengan en el formulario
-        $member->update($request->all());
+        $data = $request->only(['name', 'last_name', 'phone', 'email']);
 
-        // Regresamos a la lista con un mensaje de éxito
-        return redirect()->route('socios.index')->with('success', 'Los datos del socio se actualizaron correctamente.');
+        // Si se capturó una nueva fotografía en la vista
+        if ($request->hasFile('photo')) {
+            // Borramos la foto anterior si es que tenía una
+            if ($member->profile_photo_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($member->profile_photo_path);
+            }
+            
+            // Guardamos la nueva foto
+            $nombreArchivo = uniqid('socio_') . '.webp';
+            $data['profile_photo_path'] = $request->file('photo')->storeAs('socios', $nombreArchivo, 'public');
+        }
+
+        $member->update($data);
+
+        return redirect()->route('socios.index')->with('success', 'Los datos y la fotografía del socio se actualizaron correctamente.');
     }
     // =========================================================
     // ELIMINAR SOCIO (CON PROTECCIÓN FINANCIERA)
@@ -274,5 +344,118 @@ class MemberController extends Controller
             return redirect()->route('socios.index')->with('error', 'Ocurrió un error inesperado al intentar eliminar al socio.');
         }
     }
+    // =========================================================
+    // MÓDULO: RENOVACIÓN DE MEMBRESÍAS (MODAL)
+    // =========================================================
     
+    // Función 1: Manda los datos del socio y los planes disponibles al Modal en formato JSON
+    public function obtenerDatosRenovacion($id)
+    {
+        $socio = \App\Models\Member::findOrFail($id);
+        
+        $planes = \App\Models\Plan::all()->map(function ($plan) {
+            return [
+                'id' => $plan->id,
+                'name' => $plan->name,
+                'price' => (float)$plan->price,
+                // Semestral da 180 días, los demás 30 días
+                'days' => $plan->name === 'Semestral' ? 180 : 30, 
+                'ahorro' => $plan->name === 'Semestral' ? 'AHORRO DEL 16% VS MENSUAL' : null
+            ];
+        });
+
+        $fechaActual = $socio->expiration_date ? \Carbon\Carbon::parse($socio->expiration_date) : now();
+        // Si ya venció, le contamos a partir de hoy
+        if ($fechaActual->isPast()) {
+            $fechaActual = now();
+        }
+
+        return response()->json([
+            'id' => $socio->id,
+            'nombre' => "{$socio->name} {$socio->last_name}",
+            'folio' => $socio->folio,
+            'plan_actual_id' => $socio->plan_id,
+            'fecha_base' => $fechaActual->format('Y-m-d'),
+            'planes' => $planes
+        ]);
+    }
+
+// Función 2: Procesa el pago, actualiza la vigencia y registra en la caja
+    public function renovarMensualidad(\Illuminate\Http\Request $request, $id)
+    {
+        // 1. Validar la entrada
+        $request->validate([
+            'payment_method' => 'required|in:efectivo,tarjeta',
+            'amount_received' => 'nullable|numeric|min:0', // El efectivo recibido
+        ]);
+
+        $socio = \App\Models\Member::findOrFail($id);
+
+        if ($request->filled('plan_id')) {
+            $socio->plan_id = $request->plan_id;
+        }
+
+        $socio->load('plan');
+        $precio = $socio->plan ? (float) $socio->plan->price : 0;
+
+        // 🚨 CANDADO DE SEGURIDAD FINANCIERA 🚨
+        if (strtolower($request->payment_method) === 'efectivo' && $precio > 0) {
+            $recibido = (float) $request->amount_received;
+
+            if ($recibido < $precio) {
+                return back()->with('error', 'Cobro rechazado. El efectivo recibido ($' . number_format($recibido, 2) . ') es menor al costo de la renovación ($' . number_format($precio, 2) . ').');
+            }
+        }
+
+        // Calcular nueva fecha
+        $fechaActual = $socio->expiration_date ? \Carbon\Carbon::parse($socio->expiration_date) : now();
+        if ($fechaActual->isPast()) {
+            $fechaActual = now();
+        }
+
+        if ($socio->plan && $socio->plan->name === 'Semestral') {
+            $socio->expiration_date = $fechaActual->addMonths(6);
+        } else {
+            // Usa los días del plan si están disponibles, si no, usa addMonth()
+            if(isset($socio->plan->duration_days)){
+                $socio->expiration_date = $fechaActual->addDays($socio->plan->duration_days);
+            } else {
+                $socio->expiration_date = $fechaActual->addMonth();
+            }
+        }
+
+        $socio->is_active = true;
+        $socio->save();
+
+        $ticketUrl = null;
+
+        // Registrar la entrada de dinero
+        if ($precio > 0) {
+            $sale = \App\Models\Sale::create([
+                'user_id' => \Illuminate\Support\Facades\Auth::id() ?? 1,
+                'total' => $precio,
+                'payment_method' => ucfirst($request->payment_method),
+            ]);
+
+            // Guardar en el Historial de Pagos del Socio
+            $folioPago = 'TXN-' . strtoupper(uniqid());
+            \App\Models\Payment::create([
+                'member_id' => $socio->id,
+                'plan_id' => $socio->plan->id,
+                'plan_name' => $socio->plan->name,
+                'folio_pago' => $folioPago,
+                'amount' => $precio,
+                'payment_method' => ucfirst($request->payment_method), 
+            ]);
+
+            // Generamos la URL del ticket vinculada a esta venta exacta
+            $ticketUrl = route('sales.ticket', $sale->id); 
+        }
+
+        // Retornamos a la vista activando el disparador de impresión
+        return redirect()->back()->with([
+            'success' => '¡Suscripción renovada y cobro de $'. number_format($precio, 2) .' registrado con éxito!',
+            'imprimir_ticket' => $ticketUrl
+        ]);
+    }
 }

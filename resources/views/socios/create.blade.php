@@ -129,6 +129,41 @@
                             </div>
                         </label>
                     @endforeach
+                    <!-- 3. Método de Pago (Estilo POS) -->
+                <div class="mt-8 pt-8 border-t border-gray-100 space-y-4 mb-6">
+                    <h3 class="text-sm font-bold text-gray-800">Método de Pago</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="payment-card-create relative flex items-center justify-center gap-2 p-3 border border-orange-500 bg-orange-50/10 rounded-xl cursor-pointer hover:bg-gray-50 transition-all text-gray-600 font-semibold text-sm">
+                            <input type="radio" name="payment_method" value="efectivo" class="peer sr-only" checked>
+                            <span class="text-orange-500">💵 Efectivo</span>
+                        </label>
+                        <label class="payment-card-create relative flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-all text-gray-600 font-semibold text-sm">
+                            <input type="radio" name="payment_method" value="tarjeta" class="peer sr-only">
+                            <span class="text-gray-800">💳 Tarjeta</span>
+                        </label>
+                    </div>
+
+                    <!-- Detalles para Efectivo -->
+                    <div id="cash-details-create" class="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Efectivo Recibido</label>
+                            <input type="number" id="amount_received_create" name="amount_received" step="0.01" min="0" placeholder="0.00" class="w-full border-gray-200 rounded-lg text-sm focus:ring-orange-500 focus:border-orange-500 bg-white" required>
+                        </div>
+                        <div class="flex justify-between items-center pt-2 border-t border-gray-200">
+                            <span class="text-xs font-medium text-gray-500">Cambio a Devolver:</span>
+                            <span id="change_amount_create" class="font-bold text-emerald-600">$0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Detalles para Tarjeta -->
+                    <div id="card-details-create" class="hidden bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Últimos 4 dígitos de la tarjeta</label>
+                            <input type="text" id="card_digits_create" name="card_digits" placeholder="Ej. 4589" maxlength="4" pattern="\d{4}" class="w-full border-gray-200 rounded-lg text-sm focus:ring-gray-800 focus:border-gray-800 bg-white">
+                        </div>
+                        <p class="text-[10px] text-gray-400">Requerido para control de caja.</p>
+                    </div>
+                </div>
                 </div>
 
                 <!-- Caja de Resumen interactiva -->
@@ -266,13 +301,38 @@
                 cameraContainer.click();
             });
         document.addEventListener('DOMContentLoaded', function () {
+            // Elementos de los planes
             const radios = document.querySelectorAll('input[name="plan_id"]');
             const summaryTotal = document.getElementById('summary-total');
             const summaryDate = document.getElementById('summary-date');
             
+            // Nuevos elementos del POS
+            const paymentRadios = document.querySelectorAll('input[name="payment_method"]');
+            const cashDetails = document.getElementById('cash-details-create');
+            const cardDetails = document.getElementById('card-details-create');
+            const amountInput = document.getElementById('amount_received_create');
+            const changeAmount = document.getElementById('change_amount_create');
+            const cardDigits = document.getElementById('card_digits_create');
+            
             // Opciones para formatear la fecha a español
             const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
 
+            // Función para calcular el cambio
+            window.calculateChange = function() {
+                const selectedPlan = document.querySelector('input[name="plan_id"]:checked');
+                const price = selectedPlan ? parseFloat(selectedPlan.dataset.price) : 0;
+                const received = parseFloat(amountInput.value) || 0;
+                let change = received - price;
+                if (change < 0) change = 0;
+                changeAmount.innerHTML = `$${change.toFixed(2)}`;
+            };
+
+            // Escuchar cuando el usuario escribe el efectivo
+            if (amountInput) {
+                amountInput.addEventListener('input', calculateChange);
+            }
+
+            // Lógica de los planes
             radios.forEach(radio => {
                 radio.addEventListener('change', function() {
                     
@@ -294,6 +354,33 @@
                         expirationDate.setDate(expirationDate.getDate() + days);
                         
                         summaryDate.textContent = expirationDate.toLocaleDateString('es-MX', dateOptions);
+
+                        // 4. Recalcular el cambio si cambian de plan
+                        window.calculateChange();
+                    }
+                });
+            });
+
+            // Lógica del Método de Pago (Efectivo / Tarjeta)
+            paymentRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    document.querySelectorAll('.payment-card-create').forEach(card => {
+                        card.classList.remove('border-orange-500', 'bg-orange-50/10', 'border-gray-800', 'bg-gray-50');
+                    });
+                    if(this.checked) {
+                        if(this.value === 'efectivo') {
+                            this.closest('.payment-card-create').classList.add('border-orange-500', 'bg-orange-50/10');
+                            if(cashDetails) cashDetails.classList.remove('hidden'); 
+                            if(cardDetails) cardDetails.classList.add('hidden');
+                            if(amountInput) amountInput.required = true; 
+                            if(cardDigits) cardDigits.required = false;
+                        } else {
+                            this.closest('.payment-card-create').classList.add('border-gray-800', 'bg-gray-50');
+                            if(cashDetails) cashDetails.classList.add('hidden'); 
+                            if(cardDetails) cardDetails.classList.remove('hidden');
+                            if(amountInput) amountInput.required = false; 
+                            if(cardDigits) cardDigits.required = true;
+                        }
                     }
                 });
             });

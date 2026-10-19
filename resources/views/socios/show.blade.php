@@ -34,10 +34,24 @@
                             </div>
                         </div>
                         
-                        <!-- Contenedor del texto (Ya no necesita margen) -->
+                        <!-- Contenedor del texto -->
                         <div>
                             <h2 class="text-xl font-bold text-gray-800">{{ $member->name }} {{ $member->last_name }}</h2>
                             <p class="text-sm text-gray-500 mt-1">Folio: <span class="font-bold text-gray-700">#{{ $member->folio }}</span></p>
+                            
+                            <!-- INFORMACIÓN DE CONTACTO -->
+                            <div class="mt-3 bg-gray-50 rounded-lg p-3 text-sm text-gray-600 space-y-2 border border-gray-100">
+                                <p class="flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                                    {{ $member->phone ?? 'Sin teléfono' }}
+                                </p>
+                                @if($member->email)
+                                <p class="flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                    {{ $member->email }}
+                                </p>
+                                @endif
+                            </div>
                             
                             <div class="mt-4">
                                 @if($member->status === 'Activo')
@@ -188,10 +202,11 @@
                                 <thead>
                                     <tr class="text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 bg-gray-50/50">
                                         <th class="px-6 py-4">Fecha / Folio</th>
-                                        <th class="px-6 py-4">Hora</th> <!-- Encabezado nuevo -->
+                                        <th class="px-6 py-4">Hora</th>
                                         <th class="px-6 py-4">Concepto</th>
                                         <th class="px-6 py-4">Método</th>
                                         <th class="px-6 py-4 text-right">Importe</th>
+                                        <th class="px-6 py-4 text-center">Ticket</th> <!-- NUEVA COLUMNA -->
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-50 text-sm">
@@ -204,7 +219,7 @@
                                             <span class="block text-[11px] text-gray-400 mt-0.5">{{ $pago->folio_pago }}</span>
                                         </td>
                                         
-                                        <!-- 2. Columna HORA (Nueva) -->
+                                        <!-- 2. Columna HORA -->
                                         <td class="px-6 py-4 text-gray-500 font-medium">{{ $pago->created_at->format('h:i A') }}</td>
                                         
                                         <!-- 3. Columna CONCEPTO -->
@@ -212,7 +227,7 @@
                                         
                                         <!-- 4. Columna MÉTODO -->
                                         <td class="px-6 py-4 text-gray-500">
-                                            @if($pago->payment_method === 'efectivo')
+                                            @if(strtolower($pago->payment_method) === 'efectivo')
                                                 <span class="inline-flex items-center gap-1"><svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg> Efectivo</span>
                                             @else
                                                 <span class="inline-flex items-center gap-1"><svg class="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg> Tarjeta</span>
@@ -223,11 +238,20 @@
                                         <td class="px-6 py-4 text-right font-bold text-gray-800">
                                             ${{ number_format($pago->amount, 2) }}
                                         </td>
+
+                                        <!-- 6. Columna TICKET (Botón de Re-impresión) -->
+                                        <td class="px-6 py-4 text-center">
+                                            <a href="{{ route('socios.ticket', ['member' => $member->id, 'plan_name' => $pago->plan_name, 'amount' => $pago->amount, 'method' => strtolower($pago->payment_method), 'folio_pago' => $pago->folio_pago]) }}" 
+                                               target="_blank"
+                                               class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                                               title="Imprimir copia del ticket">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                            </a>
+                                        </td>
                                     </tr>
                                     @empty
                                     <tr>
-                                        <!-- 5 columnas para la tabla vacía -->
-                                        <td colspan="5" class="px-6 py-8 text-center text-gray-500 text-sm">No hay pagos registrados para este socio.</td>
+                                        <td colspan="6" class="px-6 py-8 text-center text-gray-500 text-sm">No hay pagos registrados para este socio. (Las renovaciones futuras aparecerán aquí).</td>
                                     </tr>
                                     @endforelse
                                 </tbody>
@@ -295,9 +319,10 @@
                         </div>
                     </div>
 
-                    <!-- 2. Método de Pago -->
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-3">2. Método de Pago</label>
+                    <!-- 2. Método de Pago (POS) -->
+                    <div class="space-y-4">
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">2. Método de Pago</label>
+                        
                         <div class="grid grid-cols-2 gap-3">
                             <label class="payment-card relative flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-all text-gray-600 font-semibold text-sm">
                                 <input type="radio" name="payment_method" value="efectivo" class="peer sr-only" checked>
@@ -310,26 +335,32 @@
                                 <span class="peer-checked:text-gray-800 transition-colors">Tarjeta</span>
                             </label>
                         </div>
-                    </div>
-                    
-                    <!-- Campos de Tarjeta (Ocultos por defecto) -->
-                    <div id="card-details-form" class="hidden mt-4 space-y-4 border-t border-gray-100 pt-4">
-                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Datos de la Tarjeta</label>
-                        
-                        <div>
-                            <input type="text" name="card_name" id="card_name" placeholder="Nombre en la tarjeta" class="w-full border-gray-200 rounded-lg text-sm focus:ring-gray-800 focus:border-gray-800">
+
+                        <!-- Detalles para Efectivo -->
+                        <div id="cash-details" class="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Efectivo Recibido</label>
+                                <input type="number" id="amount_received" name="amount_received" step="0.01" min="0" placeholder="0.00" class="w-full border-gray-200 rounded-lg text-sm focus:ring-orange-500 focus:border-orange-500 bg-white" required>
+                            </div>
+                            <div class="flex justify-between items-center pt-2 border-t border-gray-200">
+                                <span class="text-xs font-medium text-gray-500">Cambio a Devolver:</span>
+                                <span id="change_amount" class="font-bold text-emerald-600">$0.00</span>
+                            </div>
                         </div>
-                        <div>
-                            <input type="text" name="card_number" id="card_number" placeholder="Número de la tarjeta (0000 0000 0000 0000)" maxlength="16" class="w-full border-gray-200 rounded-lg text-sm focus:ring-gray-800 focus:border-gray-800">
+
+                        <!-- Detalles para Tarjeta -->
+                        <div id="card-details" class="hidden bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Últimos 4 dígitos de la tarjeta</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                                    </div>
+                                    <input type="text" id="card_digits" name="card_digits" placeholder="Ej. 4589" maxlength="4" pattern="\d{4}" class="w-full pl-9 border-gray-200 rounded-lg text-sm focus:ring-gray-800 focus:border-gray-800 bg-white">
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-gray-400">Requerido para control de caja.</p>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <input type="text" name="card_expiry" id="card_expiry" placeholder="MM/AA" maxlength="5" class="w-full border-gray-200 rounded-lg text-sm focus:ring-gray-800 focus:border-gray-800">
-                            <input type="text" name="card_cvc" id="card_cvc" placeholder="CVC" maxlength="4" class="w-full border-gray-200 rounded-lg text-sm focus:ring-gray-800 focus:border-gray-800">
-                        </div>
-                        <p class="text-[10px] text-gray-400 flex items-center gap-1">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
-                            Transacción encriptada y segura.
-                        </p>
                     </div>
                     <!-- Resumen -->
                     <div class="bg-gray-50 rounded-xl p-4 flex justify-between items-center border border-gray-100">
@@ -436,13 +467,16 @@
                 radio.addEventListener('change', calculateRenewal);
             });
 
-            // Estilos visuales y despliegue para los métodos de pago
-            const cardForm = document.getElementById('card-details-form');
-            const cardInputs = cardForm.querySelectorAll('input');
+            // Dinámica del Método de Pago (POS Flow)
+            const cashDetails = document.getElementById('cash-details');
+            const cardDetails = document.getElementById('card-details');
+            const amountInput = document.getElementById('amount_received');
+            const changeAmount = document.getElementById('change_amount');
+            const cardDigits = document.getElementById('card_digits');
 
             paymentRadios.forEach(radio => {
                 radio.addEventListener('change', function() {
-                    // Limpiar estilos de botones
+                    // Limpiar estilos
                     document.querySelectorAll('.payment-card').forEach(card => {
                         card.classList.remove('border-orange-500', 'bg-orange-50/10', 'border-gray-800', 'bg-gray-50');
                     });
@@ -450,20 +484,42 @@
                     if(this.checked) {
                         if(this.value === 'efectivo') {
                             this.closest('.payment-card').classList.add('border-orange-500', 'bg-orange-50/10');
-                            // Ocultar formulario de tarjeta y quitar required
-                            cardForm.classList.add('hidden');
-                            cardInputs.forEach(input => input.required = false);
+                            cashDetails.classList.remove('hidden');
+                            cardDetails.classList.add('hidden');
+                            amountInput.required = true;
+                            cardDigits.required = false;
                         } else {
                             this.closest('.payment-card').classList.add('border-gray-800', 'bg-gray-50');
-                            // Mostrar formulario de tarjeta y hacerlos required
-                            cardForm.classList.remove('hidden');
-                            cardInputs.forEach(input => input.required = true);
+                            cashDetails.classList.add('hidden');
+                            cardDetails.classList.remove('hidden');
+                            amountInput.required = false;
+                            cardDigits.required = true;
                         }
                     }
                 });
             });
 
-            // Dar estilo inicial al método de pago
+            // Cálculo dinámico del cambio
+            amountInput.addEventListener('input', function() {
+                const selectedPlan = document.querySelector('input[name="plan_id"]:checked');
+                const price = selectedPlan ? parseFloat(selectedPlan.dataset.price) : 0;
+                const received = parseFloat(this.value) || 0;
+                let change = received - price;
+                
+                if (change < 0) change = 0;
+                changeAmount.innerHTML = `$${change.toFixed(2)}`;
+            });
+
+            // Recalcular el cambio si seleccionan otro plan
+            radiosPlans.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    amountInput.dispatchEvent(new Event('input'));
+                });
+            });
+
+            // Disparar configuración inicial
+            const checkedPayment = document.querySelector('input[name="payment_method"]:checked');
+            if (checkedPayment) checkedPayment.dispatchEvent(new Event('change'));
             document.querySelector('input[name="payment_method"]:checked').dispatchEvent(new Event('change'));
         });
         // Lógica de Pestañas (Tabs)

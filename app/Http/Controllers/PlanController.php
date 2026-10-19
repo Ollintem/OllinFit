@@ -8,14 +8,24 @@ use Illuminate\Http\Request;
 class PlanController extends Controller
 {
     // 1. Mostrar el catálogo de planes
-   public function index()
+    public function index()
     {
-        // Traemos los planes y contamos los socios cuya fecha de vencimiento es igual o mayor a hoy
-        $planes = \App\Models\Plan::withCount(['members' => function ($query) {
+        // Traemos los planes ordenados por duración y contamos los socios vigentes
+        $planes = Plan::withCount(['members' => function ($query) {
             $query->whereDate('expiration_date', '>=', now());
-        }])->get();
+        }])
+        ->orderBy('duration_days', 'asc')
+        ->get();
 
-        return view('planes.index', compact('planes'));
+        // Identificamos cuál es la mayor cantidad de socios activos registrados
+        $maxMembers = $planes->max('members_count');
+
+        // Asignamos el ID del plan más popular solo si tiene al menos 1 socio activo
+        $mostPopularPlanId = ($maxMembers > 0)
+            ? $planes->where('members_count', $maxMembers)->first()?->id
+            : null;
+
+        return view('planes.index', compact('planes', 'mostPopularPlanId'));
     }
 
     // 2. Mostrar el formulario para crear un plan
@@ -44,10 +54,10 @@ class PlanController extends Controller
             'is_active' => $request->has('is_active'),
             'color' => 'blue', // Color por defecto
         ]);
-        
 
         return redirect()->route('planes.index')->with('success', 'Plan creado exitosamente.');
     }
+
     // 4. Mostrar el formulario de edición
     public function edit(Plan $plan)
     {
@@ -80,10 +90,10 @@ class PlanController extends Controller
     }
 
     // 6. Eliminar el plan
-   public function destroy($id)
+    public function destroy($id)
     {
         try {
-            $plan = \App\Models\Plan::findOrFail($id);
+            $plan = Plan::findOrFail($id);
             
             // Intenta eliminar el plan de la base de datos
             $plan->delete();
