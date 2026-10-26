@@ -51,7 +51,7 @@ class EmployeeController extends Controller
             'password' => Hash::make($request->password), 
             'phone' => $request->phone,
             'hire_date' => $request->hire_date,
-            'is_active' => $request->has('is_active') ? true : false, 
+            'is_active' => $request->boolean('is_active'), 
             'profile_photo_path' => $photoPath,
         ]);
 
@@ -90,7 +90,7 @@ class EmployeeController extends Controller
             'email' => $request->email,
             'phone' => $request->phone,
             'hire_date' => $request->hire_date,
-            'is_active' => $request->has('is_active') ? true : false,
+            'is_active' => $request->boolean('is_active'),
         ];
 
         // Solo actualizamos la contraseña si el administrador escribió una nueva
