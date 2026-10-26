@@ -128,16 +128,8 @@ class MemberController extends Controller
             'is_active' => true,
         ]);
 
-        // 6. Registrar la VENTA EXACTA en el Punto de Venta
-        // Ojo: En la base de datos se guarda lo que cuesta el plan (el ingreso real), no el billete grande que te dieron.
-        $sale = \App\Models\Sale::create([
-            'user_id' => \Illuminate\Support\Facades\Auth::id() ?? 1,
-            'total' => $plan->price,
-            'payment_method' => ucfirst($request->payment_method),
-        ]);
-
-        // Opcional: Si quieres guardar los detalles del pago de la membresía en la tabla "payments"
-        // para tener el historial del socio (Fase 3)
+        // 6. Registrar el pago de la membresía en 'payments' (única fuente del ingreso por membresías).
+        // Nota: NO se crea una venta en 'sales'; esa tabla es solo para ventas del POS, para no duplicar el ingreso.
         $folioPago = 'TXN-' . strtoupper(uniqid());
         \App\Models\Payment::create([
             'member_id' => $socio->id,
@@ -145,10 +137,17 @@ class MemberController extends Controller
             'plan_name' => $plan->name,
             'folio_pago' => $folioPago,
             'amount' => $plan->price,
-            'payment_method' => ucfirst($request->payment_method), 
+            'payment_method' => ucfirst($request->payment_method),
         ]);
 
-        $ticketUrl = route('sales.ticket', $sale->id);
+        // Ticket de membresía (se arma con los datos del pago, no requiere una fila en 'sales').
+        $ticketUrl = route('socios.ticket', [
+            $socio->id,
+            'plan_name'  => $plan->name,
+            'amount'     => $plan->price,
+            'method'     => $request->payment_method,
+            'folio_pago' => $folioPago,
+        ]);
 
         // 7. Redirigir al index con mensaje y activar la impresión automática del ticket
         return redirect()->route('socios.index')->with([
@@ -429,15 +428,9 @@ class MemberController extends Controller
 
         $ticketUrl = null;
 
-        // Registrar la entrada de dinero
+        // Registrar la entrada de dinero en 'payments' (única fuente del ingreso por membresías).
+        // No se crea venta en 'sales' para no duplicar el ingreso en caja/reportes.
         if ($precio > 0) {
-            $sale = \App\Models\Sale::create([
-                'user_id' => \Illuminate\Support\Facades\Auth::id() ?? 1,
-                'total' => $precio,
-                'payment_method' => ucfirst($request->payment_method),
-            ]);
-
-            // Guardar en el Historial de Pagos del Socio
             $folioPago = 'TXN-' . strtoupper(uniqid());
             \App\Models\Payment::create([
                 'member_id' => $socio->id,
@@ -445,11 +438,17 @@ class MemberController extends Controller
                 'plan_name' => $socio->plan->name,
                 'folio_pago' => $folioPago,
                 'amount' => $precio,
-                'payment_method' => ucfirst($request->payment_method), 
+                'payment_method' => ucfirst($request->payment_method),
             ]);
 
-            // Generamos la URL del ticket vinculada a esta venta exacta
-            $ticketUrl = route('sales.ticket', $sale->id); 
+            // Ticket de membresía, armado con los datos del pago.
+            $ticketUrl = route('socios.ticket', [
+                $socio->id,
+                'plan_name'  => $socio->plan->name,
+                'amount'     => $precio,
+                'method'     => $request->payment_method,
+                'folio_pago' => $folioPago,
+            ]);
         }
 
         // Retornamos a la vista activando el disparador de impresión

@@ -24,11 +24,9 @@ class CashRegisterController extends Controller
             // 1. Calcular Ingresos en EFECTIVO
             $ventasEfectivo = \App\Models\Sale::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde);
             $pagosMembresiasEfectivo = \App\Models\Payment::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde);
-            
-            $sociosNuevosIds = \App\Models\Member::where('created_at', '>=', $desde)->pluck('plan_id');
-            $montoSocios = \App\Models\Plan::whereIn('id', $sociosNuevosIds)->sum('price') ?? 0;
-            
-            $ingresosEfectivoTurno = $ventasEfectivo->sum('total') + $pagosMembresiasEfectivo->sum('amount') + $montoSocios;
+
+            // Ingreso en efectivo = ventas del POS + pagos de membresías. Cada ingreso se cuenta una sola vez.
+            $ingresosEfectivoTurno = $ventasEfectivo->sum('total') + $pagosMembresiasEfectivo->sum('amount');
 
             // 2. Variables de la Vista (Conteos y Tarjetas)
             $ventasTurnoCount = \App\Models\Sale::where('created_at', '>=', $desde)->count() + \App\Models\Payment::where('created_at', '>=', $desde)->count();
@@ -122,11 +120,9 @@ class CashRegisterController extends Controller
         $desde = $cajaActiva->opened_at;
         $ventasPos = Sale::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde)->sum('total');
         $pagosMembresias = Payment::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde)->sum('amount');
-        
-        $sociosNuevosIds = Member::where('created_at', '>=', $desde)->pluck('plan_id');
-        $montoSocios = \App\Models\Plan::whereIn('id', $sociosNuevosIds)->sum('price') ?? 0;
 
-        $ingresosEfectivoTurno = $ventasPos + $pagosMembresias + $montoSocios;
+        // Ingreso en efectivo = ventas del POS + pagos de membresías. Sin triple conteo de socios nuevos.
+        $ingresosEfectivoTurno = $ventasPos + $pagosMembresias;
 
         // NUEVO: Restamos los gastos en efectivo que salieron de esta caja
         $egresosEfectivo = \App\Models\Expense::where('cash_register_id', $cajaActiva->id)

@@ -35,18 +35,9 @@ class ReportController extends Controller
             return $item;
         });
 
-        $sociosNuevos = Member::with('plan')->whereDate('created_at', $fechaSeleccionada)->get()->map(function($socio) {
-            $item = new \stdClass();
-            $item->id = $socio->id;
-            $item->created_at = $socio->created_at;
-            $item->origen = 'Inscripción Socio';
-            $item->monto = $socio->plan->price ?? 0;
-            $item->payment_method = 'Efectivo';
-            $item->concepto_id = $socio->folio . ' (' . $socio->name . ')';
-            return $item;
-        });
-
-        $transacciones = $ventasPos->concat($pagosMembresias)->concat($sociosNuevos)->sortByDesc('created_at');
+        // Nota: las inscripciones y renovaciones ya están incluidas en $pagosMembresias (tabla payments).
+        // No se vuelven a sumar aquí para no duplicar el ingreso.
+        $transacciones = $ventasPos->concat($pagosMembresias)->sortByDesc('created_at');
         $totalIngresos = $transacciones->sum('monto');
         $efectivoIngresos = $transacciones->where('payment_method', 'Efectivo')->sum('monto');
         $tarjetaIngresos = $transacciones->where('payment_method', 'Tarjeta')->sum('monto');
