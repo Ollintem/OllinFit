@@ -28,7 +28,21 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Aterrizar en el primer módulo permitido (evita el 403 si el rol no tiene dashboard).
+        $home = $request->user()->homeRoute();
+
+        if ($home === null) {
+            // Cuenta sin módulos asignados: cerrar sesión y avisar.
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Tu cuenta no tiene módulos asignados. Contacta al administrador.',
+            ]);
+        }
+
+        return redirect()->intended(route($home, absolute: false));
     }
 
     /**

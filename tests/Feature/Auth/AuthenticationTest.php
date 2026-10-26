@@ -20,6 +20,10 @@ class AuthenticationTest extends TestCase
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
         $user = User::factory()->create();
+        // Tras el login, el usuario aterriza en el primer módulo permitido (User::homeRoute()).
+        // Le damos acceso al dashboard para comprobar esa redirección.
+        \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'ver_dashboard']);
+        $user->givePermissionTo('ver_dashboard');
 
         $response = $this->post('/login', [
             'email' => $user->email,
