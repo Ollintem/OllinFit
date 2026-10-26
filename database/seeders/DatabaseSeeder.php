@@ -12,13 +12,18 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Permisos y rol Administrador (fuente de verdad: config/permisos.php)
+        // 1. Permisos, rol Administrador y roles de demo (fuente de verdad: config/permisos.php)
         $this->call(RolePermissionSeeder::class);
 
-        // 2. Datos de catálogo y demo
+        // 2. Empleados de demo (uno por rol, incluido uno inactivo) — requiere los roles ya creados
+        $this->call(EmployeeSeeder::class);
+
+        // 3. Datos de catálogo y demo
         $this->call([
             PlanSeeder::class,
             MemberSeeder::class,
+            SupplierSeeder::class,
+            ProductSeeder::class,
         ]);
     }
 }

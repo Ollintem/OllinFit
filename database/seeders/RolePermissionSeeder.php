@@ -56,6 +56,46 @@ class RolePermissionSeeder extends Seeder
         );
         $admin->assignRole($adminRole);
 
+        // 6. Roles adicionales con subconjuntos de permisos (para probar el RBAC y el aterrizaje por rol)
+        $rolesExtra = [
+            'Gerente' => [
+                'descripcion' => 'Acceso a todo excepto la gestión de roles.',
+                // Todos los permisos de la matriz menos gestionar_roles
+                'permisos' => $permisos->reject(fn ($p) => $p === 'gestionar_roles')->values()->all(),
+            ],
+            'Recepcionista' => [
+                'descripcion' => 'Atención en recepción: socios, cobros de membresía, caja y control de acceso.',
+                'permisos' => [
+                    'ver_dashboard',
+                    'ver_socios', 'crear_socios', 'editar_socios', 'renovar_socios',
+                    'ver_planes',
+                    'usar_pos',
+                    'ver_caja', 'operar_caja',
+                    'ver_acceso', 'operar_acceso',
+                ],
+            ],
+            'Cajero' => [
+                'descripcion' => 'Punto de venta, caja y gastos. Sin acceso al dashboard (aterriza en el POS).',
+                'permisos' => [
+                    'usar_pos', 'ver_historial_ventas',
+                    'ver_caja', 'operar_caja',
+                    'ver_gastos', 'crear_gastos',
+                    'ver_productos',
+                ],
+            ],
+            'Entrenador' => [
+                'descripcion' => 'Solo control de acceso (aterriza en la pantalla de acceso).',
+                'permisos' => [
+                    'ver_acceso', 'operar_acceso',
+                ],
+            ],
+        ];
+
+        foreach ($rolesExtra as $nombre => $datos) {
+            $rol = Role::firstOrCreate(['name' => $nombre], ['description' => $datos['descripcion']]);
+            $rol->syncPermissions($datos['permisos']);
+        }
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }
