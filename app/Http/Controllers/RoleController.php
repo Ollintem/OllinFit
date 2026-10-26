@@ -55,6 +55,11 @@ class RoleController extends Controller
     // Actualizar el rol y sus permisos
     public function update(Request $request, Role $role)
     {
+        // Bloqueo de seguridad: el rol Administrador no se puede modificar por URL
+        if ($role->name === 'Administrador') {
+            return redirect()->route('empleados.index')->with('error', 'El rol de Administrador no se puede editar.');
+        }
+
         // 1. Validar datos (que el nombre no se repita con otro rol)
         $request->validate([
             'name' => 'required|string|max:255|unique:roles,name,' . $role->id,

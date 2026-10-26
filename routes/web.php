@@ -22,7 +22,7 @@ Route::get('/', function () {
 Route::middleware(['auth', 'active'])->group(function () {
 
     // Dashboard principal con métricas dinámicas
-    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:ver_dashboard')->name('dashboard');
 
     // MÓDULOS CON PROTECCIÓN GRANULAR (RBAC)
     // =========================================================
@@ -31,7 +31,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Listado (mostrar)
     Route::get('empleados', [EmployeeController::class, 'index'])
         ->name('empleados.index')
-        ->middleware('permission:mostrar_empleados');
+        ->middleware('permission:ver_empleados');
 
     // Alta (alta)
     Route::get('empleados/create', [EmployeeController::class, 'create'])
@@ -59,18 +59,20 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // ========================================================================
     // MÓDULO: ROLES Y PERMISOS
+    // Solo el rol Administrador con el permiso 'gestionar_roles' puede tocarlo.
     // ========================================================================
+    Route::middleware(['permission:gestionar_roles', 'role:Administrador'])->group(function () {
+        // Alta (crear y guardar)
+        Route::get('roles/create', [RoleController::class, 'create'])->name('roles.create');
+        Route::post('roles', [RoleController::class, 'store'])->name('roles.store');
 
-    // Alta (crear y guardar)
-    Route::get('roles/create', [RoleController::class, 'create'])->name('roles.create');
-    Route::post('roles', [RoleController::class, 'store'])->name('roles.store');
+        // Edición y Actualización
+        Route::get('roles/{role}/edit', [RoleController::class, 'edit'])->name('roles.edit');
+        Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
 
-    // Edición y Actualización
-    Route::get('roles/{role}/edit', [RoleController::class, 'edit'])->name('roles.edit');
-    Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
-
-    // Eliminación
-    Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+        // Eliminación
+        Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+    });
 
 
     // =========================================================
@@ -78,11 +80,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     // =========================================================
 
     // MÓDULO: PLANES Y MEMBRESÍAS
-    Route::get('planes', [PlanController::class, 'index'])->name('planes.index')->middleware('permission:mostrar_planes');
-    Route::get('planes/create', [PlanController::class, 'create'])->name('planes.create')->middleware('permission:crear_editar_planes');
-    Route::post('planes', [PlanController::class, 'store'])->name('planes.store')->middleware('permission:crear_editar_planes');
-    Route::get('planes/{plan}/edit', [PlanController::class, 'edit'])->name('planes.edit')->middleware('permission:crear_editar_planes');
-    Route::put('planes/{plan}', [PlanController::class, 'update'])->name('planes.update')->middleware('permission:crear_editar_planes');
+    Route::get('planes', [PlanController::class, 'index'])->name('planes.index')->middleware('permission:ver_planes');
+    Route::get('planes/create', [PlanController::class, 'create'])->name('planes.create')->middleware('permission:crear_planes');
+    Route::post('planes', [PlanController::class, 'store'])->name('planes.store')->middleware('permission:crear_planes');
+    Route::get('planes/{plan}/edit', [PlanController::class, 'edit'])->name('planes.edit')->middleware('permission:editar_planes');
+    Route::put('planes/{plan}', [PlanController::class, 'update'])->name('planes.update')->middleware('permission:editar_planes');
     Route::delete('planes/{plan}', [PlanController::class, 'destroy'])->name('planes.destroy')->middleware('permission:eliminar_planes');
 
 
@@ -92,91 +94,89 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::middleware([\App\Http\Middleware\CheckCashRegisterOpen::class])->group(function () {
         
         // 1. Registro de Nuevos Socios (RUTAS ESTÁTICAS ARRIBA)
-        Route::get('socios/create', [MemberController::class, 'create'])->name('socios.create');
-        Route::post('socios', [MemberController::class, 'store'])->name('socios.store');
+        Route::get('socios/create', [MemberController::class, 'create'])->name('socios.create')->middleware('permission:crear_socios');
+        Route::post('socios', [MemberController::class, 'store'])->name('socios.store')->middleware('permission:crear_socios');
 
         // 2. Renovaciones de Membresías
-        Route::post('socios/{id}/renovar', [MemberController::class, 'renovarMensualidad'])->name('socios.renovar');
-        Route::post('socios/{member}/renovar', [MemberController::class, 'renew'])->name('socios.renew');
+        Route::post('socios/{id}/renovar', [MemberController::class, 'renovarMensualidad'])->name('socios.renovar')->middleware('permission:renovar_socios');
+        Route::post('socios/{member}/renovar', [MemberController::class, 'renew'])->name('socios.renew')->middleware('permission:renovar_socios');
 
         // 3. Punto de Venta y Tienda (Cobra ingresos extras)
-        Route::get('punto-de-venta', [SaleController::class, 'index'])->name('sales.index');
-        Route::post('punto-de-venta', [SaleController::class, 'store'])->name('sales.store');
+        Route::get('punto-de-venta', [SaleController::class, 'index'])->name('sales.index')->middleware('permission:usar_pos');
+        Route::post('punto-de-venta', [SaleController::class, 'store'])->name('sales.store')->middleware('permission:usar_pos');
 
        // 4. Gastos y Compras (Salidas de efectivo)
-        Route::get('gastos', [App\Http\Controllers\ExpenseController::class, 'index'])->name('gastos.index'); 
-        Route::get('gastos/create', [App\Http\Controllers\ExpenseController::class, 'create'])->name('gastos.create');
-        Route::post('gastos', [App\Http\Controllers\ExpenseController::class, 'store'])->name('gastos.store');
+        Route::get('gastos', [App\Http\Controllers\ExpenseController::class, 'index'])->name('gastos.index')->middleware('permission:ver_gastos');
+        Route::get('gastos/create', [App\Http\Controllers\ExpenseController::class, 'create'])->name('gastos.create')->middleware('permission:crear_gastos');
+        Route::post('gastos', [App\Http\Controllers\ExpenseController::class, 'store'])->name('gastos.store')->middleware('permission:crear_gastos');
         // NUEVAS RUTAS: Editar, Actualizar y Eliminar
-        Route::get('gastos/{gasto}/edit', [App\Http\Controllers\ExpenseController::class, 'edit'])->name('gastos.edit');
-        Route::put('gastos/{gasto}', [App\Http\Controllers\ExpenseController::class, 'update'])->name('gastos.update');
-        Route::delete('gastos/{id}', [App\Http\Controllers\ExpenseController::class, 'destroy'])->name('gastos.destroy');
+        Route::get('gastos/{gasto}/edit', [App\Http\Controllers\ExpenseController::class, 'edit'])->name('gastos.edit')->middleware('permission:editar_gastos');
+        Route::put('gastos/{gasto}', [App\Http\Controllers\ExpenseController::class, 'update'])->name('gastos.update')->middleware('permission:editar_gastos');
+        Route::delete('gastos/{id}', [App\Http\Controllers\ExpenseController::class, 'destroy'])->name('gastos.destroy')->middleware('permission:eliminar_gastos');
     });
 
     // =========================================================
     // MÓDULO: SOCIOS (Rutas libres que NO cobran)
     // =========================================================
-    Route::get('socios', [MemberController::class, 'index'])->name('socios.index');
-    Route::get('socios/{id}/datos-renovacion', [MemberController::class, 'obtenerDatosRenovacion']);
-    
-    // RUTAS DINÁMICAS (Con variables)
-    Route::get('socios/{member}/edit', [MemberController::class, 'edit'])->name('socios.edit');
-    Route::put('socios/{member}', [MemberController::class, 'update'])->name('socios.update');
-    Route::delete('socios/{member}', [MemberController::class, 'destroy'])->name('socios.destroy');
-    Route::get('socios/{member}/ticket', [MemberController::class, 'ticket'])->name('socios.ticket');
-    Route::get('socios/{member}/pagos', [MemberController::class, 'payments'])->name('socios.pagos');
-    Route::get('socios/{member}/accesos', [MemberController::class, 'accesses'])->name('socios.accesos');
+    Route::get('socios', [MemberController::class, 'index'])->name('socios.index')->middleware('permission:ver_socios');
+    Route::get('socios/{id}/datos-renovacion', [MemberController::class, 'obtenerDatosRenovacion'])->middleware('permission:renovar_socios');
 
-    // ⚠️ ATENCIÓN: Esta ruta es un "comodín" ({member}). 
+    // RUTAS DINÁMICAS (Con variables)
+    Route::get('socios/{member}/edit', [MemberController::class, 'edit'])->name('socios.edit')->middleware('permission:editar_socios');
+    Route::put('socios/{member}', [MemberController::class, 'update'])->name('socios.update')->middleware('permission:editar_socios');
+    Route::delete('socios/{member}', [MemberController::class, 'destroy'])->name('socios.destroy')->middleware('permission:eliminar_socios');
+    Route::get('socios/{member}/ticket', [MemberController::class, 'ticket'])->name('socios.ticket')->middleware('permission:ver_socios');
+    Route::get('socios/{member}/pagos', [MemberController::class, 'payments'])->name('socios.pagos')->middleware('permission:ver_socios');
+    Route::get('socios/{member}/accesos', [MemberController::class, 'accesses'])->name('socios.accesos')->middleware('permission:ver_socios');
+
+    // ⚠️ ATENCIÓN: Esta ruta es un "comodín" ({member}).
     // DEBE IR SIEMPRE HASTA EL FINAL para no chocar con las demás.
-    Route::get('socios/{member}', [MemberController::class, 'show'])->name('socios.show');
+    Route::get('socios/{member}', [MemberController::class, 'show'])->name('socios.show')->middleware('permission:ver_socios');
 
     // MÓDULO: CONTROL DE ACCESO
-    Route::get('/acceso', [App\Http\Controllers\AccessController::class, 'index'])->name('acceso.index');
-    Route::post('/acceso/escanear', [App\Http\Controllers\AccessController::class, 'scan'])->name('acceso.scan');
-    Route::post('/acceso/liberar/{member}', [App\Http\Controllers\AccessController::class, 'release'])->name('acceso.release');
+    Route::get('/acceso', [App\Http\Controllers\AccessController::class, 'index'])->name('acceso.index')->middleware('permission:ver_acceso');
+    Route::post('/acceso/escanear', [App\Http\Controllers\AccessController::class, 'scan'])->name('acceso.scan')->middleware('permission:operar_acceso');
+    Route::post('/acceso/liberar/{member}', [App\Http\Controllers\AccessController::class, 'release'])->name('acceso.release')->middleware('permission:operar_acceso');
 
 
 
     // =========================================================
     // MÓDULO: PUNTO DE VENTA (INVENTARIO DE PRODUCTOS)
     // =========================================================
-    Route::get('productos', [ProductController::class, 'index'])->name('productos.index');
-    Route::get('productos/create', [ProductController::class, 'create'])->name('productos.create');
-    Route::post('productos', [ProductController::class, 'store'])->name('productos.store');
-    Route::get('productos/{product}/edit', [ProductController::class, 'edit'])->name('productos.edit');
-    Route::put('productos/{product}', [ProductController::class, 'update'])->name('productos.update');
-    Route::delete('productos/{product}', [ProductController::class, 'destroy'])->name('productos.destroy');
+    Route::get('productos', [ProductController::class, 'index'])->name('productos.index')->middleware('permission:ver_productos');
+    Route::get('productos/create', [ProductController::class, 'create'])->name('productos.create')->middleware('permission:crear_productos');
+    Route::post('productos', [ProductController::class, 'store'])->name('productos.store')->middleware('permission:crear_productos');
+    Route::get('productos/{product}/edit', [ProductController::class, 'edit'])->name('productos.edit')->middleware('permission:editar_productos');
+    Route::put('productos/{product}', [ProductController::class, 'update'])->name('productos.update')->middleware('permission:editar_productos');
+    Route::delete('productos/{product}', [ProductController::class, 'destroy'])->name('productos.destroy')->middleware('permission:eliminar_productos');
 
    // =========================================================
     // MÓDULO: PROVEEDORES
     // =========================================================
-    Route::get('proveedores', [App\Http\Controllers\SupplierController::class, 'index'])->name('proveedores.index');
-    Route::post('proveedores', [App\Http\Controllers\SupplierController::class, 'store'])->name('proveedores.store');
-    Route::put('proveedores/{proveedor}', [App\Http\Controllers\SupplierController::class, 'update'])->name('proveedores.update'); // <-- NUEVA
-    Route::delete('proveedores/{proveedor}', [App\Http\Controllers\SupplierController::class, 'destroy'])->name('proveedores.destroy');
+    Route::get('proveedores', [App\Http\Controllers\SupplierController::class, 'index'])->name('proveedores.index')->middleware('permission:ver_proveedores');
+    Route::post('proveedores', [App\Http\Controllers\SupplierController::class, 'store'])->name('proveedores.store')->middleware('permission:crear_proveedores');
+    Route::put('proveedores/{proveedor}', [App\Http\Controllers\SupplierController::class, 'update'])->name('proveedores.update')->middleware('permission:editar_proveedores');
+    Route::delete('proveedores/{proveedor}', [App\Http\Controllers\SupplierController::class, 'destroy'])->name('proveedores.destroy')->middleware('permission:eliminar_proveedores');
 
 
     // =========================================================
     // MÓDULO: PUNTO DE VENTA (VENTAS / CAJA)
     // =========================================================
-    Route::get('punto-de-venta/{sale}/ticket', [SaleController::class, 'ticket'])->name('sales.ticket');
-    // Nota: Más adelante podemos agregarle los middlewares de permission 
-    // a estas rutas (ej. 'crear_roles', 'mostrar_roles') igual que a empleados.
-    Route::middleware(['auth'])->group(function () {
-        Route::get('/reportes', [ReportController::class, 'index'])->name('reports.index');
-        Route::get('/reportes/exportar', [ReportController::class, 'exportarPdf'])->name('reports.export');
-    });
-    Route::middleware(['auth'])->group(function () {
-        Route::get('/flujo-de-caja', [CashRegisterController::class, 'index'])->name('caja.index');
-        Route::post('/flujo-de-caja/abrir', [CashRegisterController::class, 'open'])->name('caja.open');
-        Route::post('/flujo-de-caja/cerrar', [CashRegisterController::class, 'close'])->name('caja.close');
-    });
-    Route::get('/flujo-de-caja/historial', [CashRegisterController::class, 'historial'])->name('caja.historial');
+    Route::get('punto-de-venta/{sale}/ticket', [SaleController::class, 'ticket'])->name('sales.ticket')->middleware('permission:usar_pos');
+
+    // MÓDULO: REPORTES
+    Route::get('/reportes', [ReportController::class, 'index'])->name('reports.index')->middleware('permission:ver_reportes');
+    Route::get('/reportes/exportar', [ReportController::class, 'exportarPdf'])->name('reports.export')->middleware('permission:exportar_reportes');
+
+    // MÓDULO: CAJA
+    Route::get('/flujo-de-caja', [CashRegisterController::class, 'index'])->name('caja.index')->middleware('permission:ver_caja');
+    Route::post('/flujo-de-caja/abrir', [CashRegisterController::class, 'open'])->name('caja.open')->middleware('permission:operar_caja');
+    Route::post('/flujo-de-caja/cerrar', [CashRegisterController::class, 'close'])->name('caja.close')->middleware('permission:operar_caja');
+    Route::get('/flujo-de-caja/historial', [CashRegisterController::class, 'historial'])->name('caja.historial')->middleware('permission:ver_caja');
 
     // Ruta para generar el modal dinámico
-    Route::get('punto-de-venta/{sale}/datos-ticket', [SaleController::class, 'getTicketData'])->name('sales.ticket.data');
-    Route::get('ventas/historial', [SaleController::class, 'history'])->name('sales.history');
+    Route::get('punto-de-venta/{sale}/datos-ticket', [SaleController::class, 'getTicketData'])->name('sales.ticket.data')->middleware('permission:usar_pos');
+    Route::get('ventas/historial', [SaleController::class, 'history'])->name('sales.history')->middleware('permission:ver_historial_ventas');
 
 });
 

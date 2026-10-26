@@ -1,6 +1,6 @@
 <x-app-layout>
     <div class="max-w-4xl mx-auto p-6 space-y-6">
-        
+
         <!-- Header con botón de regreso -->
         <div class="flex items-center gap-4 mb-4">
             <a href="{{ route('empleados.index') }}" class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -8,9 +8,15 @@
             </a>
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">Editar Rol</h1>
-                <p class="text-sm text-gray-500 mt-1">Modifica el nombre y los accesos permitidos para este puesto.</p>
+                <p class="text-sm text-gray-500 mt-1">Modifica el nombre y las acciones permitidas para este puesto.</p>
             </div>
         </div>
+
+        @if ($errors->any())
+            <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-4">
+                {{ $errors->first() }}
+            </div>
+        @endif
 
         <form action="{{ route('roles.update', $role->id) }}" method="POST" class="space-y-6">
             @csrf
@@ -29,32 +35,13 @@
                     <h2 class="text-base font-bold text-gray-800">Accesos y Permisos</h2>
                 </div>
 
-                <!-- Grid de Permisos -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    @foreach($permissions as $permission)
-                        <label class="flex items-start gap-3 p-3 border border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                            <div class="relative inline-flex items-center mt-0.5">
-                                <!-- Checkbox para enviar el ID del permiso -->
-                                <input type="checkbox" name="permissions[]" value="{{ $permission->name }}" class="sr-only peer" {{ $role->hasPermissionTo($permission->name) ? 'checked' : '' }}>
-                                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500"></div>
-                            </div>
-                            <div class="flex-1">
-                                <!-- Formateamos el nombre del permiso (ej: 'mostrar_planes' -> 'Mostrar planes') -->
-                                <span class="text-sm font-semibold text-gray-700 capitalize">{{ str_replace('_', ' ', $permission->name) }}</span>
-                            </div>
-                        </label>
-                    @endforeach
-                </div>
+                @include('roles.partials.matriz-permisos', ['role' => $role])
             </div>
 
             <!-- Botones -->
             <div class="flex items-center justify-end gap-4">
-                <a href="{{ route('empleados.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">
-                    Cancelar
-                </a>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm">
-                    Guardar Cambios
-                </button>
+                <a href="{{ route('empleados.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">Cancelar</a>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm">Guardar Cambios</button>
             </div>
         </form>
     </div>
