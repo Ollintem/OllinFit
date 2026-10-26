@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\Auth\PasswordResetCodeController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
@@ -26,9 +27,23 @@ Route::middleware('guest')->group(function () {
         ->name('password.request');
 
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->middleware('throttle:10,1')
         ->name('password.email');
 
-    Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
+    // Recuperación con código de 6 dígitos (paso 2)
+    Route::get('forgot-password/verify', [PasswordResetCodeController::class, 'show'])
+        ->name('password.code');
+
+    Route::post('forgot-password/verify', [PasswordResetCodeController::class, 'verify'])
+        ->middleware('throttle:20,1')
+        ->name('password.code.verify');
+
+    Route::post('forgot-password/resend', [PasswordResetCodeController::class, 'resend'])
+        ->middleware('throttle:6,1')
+        ->name('password.code.resend');
+
+    // Paso 3: nueva contraseña (requiere código verificado en sesión)
+    Route::get('reset-password', [NewPasswordController::class, 'create'])
         ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
