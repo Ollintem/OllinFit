@@ -103,8 +103,9 @@ return [
     'reportes' => [
         'label' => 'Reportes',
         'permisos' => [
-            'ver_reportes'      => 'Ver',
-            'exportar_reportes' => 'Exportar',
+            'ver_reportes'            => 'Ver (día actual)',
+            'ver_reportes_historicos' => 'Ver días anteriores',
+            'exportar_reportes'       => 'Exportar',
         ],
     ],
 

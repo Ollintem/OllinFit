@@ -13,7 +13,14 @@ class ReportController extends Controller
 {
     public function index(Request $request)
     {
-        $fechaSeleccionada = $request->input('fecha', date('Y-m-d'));
+        $hoy = date('Y-m-d');
+        $fechaSeleccionada = $request->input('fecha', $hoy);
+
+        // Solo quien tenga 'ver_reportes_historicos' (p. ej. Administrador) puede consultar días anteriores.
+        if ($fechaSeleccionada !== $hoy && ! $request->user()->can('ver_reportes_historicos')) {
+            return redirect()->route('reports.index')
+                ->with('error', 'Solo un administrador puede consultar reportes de días anteriores.');
+        }
 
         // ==========================================
         // 1. INGRESOS (Entradas de dinero)
@@ -77,7 +84,15 @@ class ReportController extends Controller
 
     public function exportarPdf(Request $request)
     {
-        $fechaSeleccionada = $request->input('fecha', date('Y-m-d'));
+        $hoy = date('Y-m-d');
+        $fechaSeleccionada = $request->input('fecha', $hoy);
+
+        // Misma restricción que el reporte: días anteriores solo con permiso.
+        if ($fechaSeleccionada !== $hoy && ! $request->user()->can('ver_reportes_historicos')) {
+            return redirect()->route('reports.index')
+                ->with('error', 'Solo un administrador puede consultar reportes de días anteriores.');
+        }
+
         // (Dejaremos esta función básica por ahora hasta que maquetemos el PDF financiero)
         return redirect()->back()->with('error', 'El formato PDF financiero está en construcción.');
     }
