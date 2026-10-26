@@ -28,6 +28,17 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Rechazar de inmediato a las cuentas desactivadas.
+        if (! $request->user()->is_active) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Tu cuenta está desactivada. Contacta al administrador.',
+            ]);
+        }
+
         // Aterrizar en el primer módulo permitido (evita el 403 si el rol no tiene dashboard).
         $home = $request->user()->homeRoute();
 
