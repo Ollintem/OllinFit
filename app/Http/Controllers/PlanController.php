@@ -53,7 +53,7 @@ class PlanController extends Controller
             'duration_value' => $request->duration_value,
             'duration_unit' => $request->duration_unit,
             'description' => $request->description,
-            'is_active' => $request->has('is_active'),
+            'is_active' => $request->boolean('is_active'),
             'color' => 'blue', // Color por defecto
         ]);
 
@@ -87,7 +87,7 @@ class PlanController extends Controller
             'description' => $request->description,
             'highlight_text' => $request->highlight_text,
             'color' => $request->color,
-            'is_active' => $request->has('is_active'),
+            'is_active' => $request->boolean('is_active'),
         ]);
 
         return redirect()->route('planes.index')->with('success', 'Plan actualizado exitosamente.');
