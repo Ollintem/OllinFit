@@ -43,16 +43,7 @@
                         </div>
 
                         <!-- Duración -->
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Duración (Días) <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <input type="number" name="duration_days" class="pr-12 w-full border-gray-200 rounded-lg text-sm focus:ring-orange-500 focus:border-orange-500" placeholder="Ej. 30" required>
-                                <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none border-l border-gray-200 my-2">
-                                    
-                                </div>
-                            </div>
-                            <p class="text-[11px] text-gray-400 mt-1">Ingresa el valor exacto en días (ej. 30, 90, 180).</p>
-                        </div>
+                        @include('planes.partials.duracion', ['value' => old('duration_value', 1), 'unit' => old('duration_unit', 'months')])
                     </div>
 
                     <!-- Descripción -->

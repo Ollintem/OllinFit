@@ -41,7 +41,8 @@ class PlanController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
-            'duration_days' => 'required|integer|min:1',
+            'duration_value' => 'required|integer|min:1',
+            'duration_unit' => 'required|in:days,months,years',
             'description' => 'nullable|string|max:500',
         ]);
 
@@ -49,7 +50,8 @@ class PlanController extends Controller
         Plan::create([
             'name' => $request->name,
             'price' => $request->price,
-            'duration_days' => $request->duration_days,
+            'duration_value' => $request->duration_value,
+            'duration_unit' => $request->duration_unit,
             'description' => $request->description,
             'is_active' => $request->has('is_active'),
             'color' => 'blue', // Color por defecto
@@ -70,7 +72,8 @@ class PlanController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
-            'duration_days' => 'required|integer|min:1',
+            'duration_value' => 'required|integer|min:1',
+            'duration_unit' => 'required|in:days,months,years',
             'description' => 'nullable|string|max:500',
             'highlight_text' => 'nullable|string|max:255',
             'color' => 'required|string|in:blue,orange,green,purple,gray',
@@ -79,7 +82,8 @@ class PlanController extends Controller
         $plan->update([
             'name' => $request->name,
             'price' => $request->price,
-            'duration_days' => $request->duration_days,
+            'duration_value' => $request->duration_value,
+            'duration_unit' => $request->duration_unit,
             'description' => $request->description,
             'highlight_text' => $request->highlight_text,
             'color' => $request->color,

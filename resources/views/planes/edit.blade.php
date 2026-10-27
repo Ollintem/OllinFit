@@ -42,15 +42,7 @@
                         </div>
 
                         <!-- Duración -->
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Duración (Días) <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <input type="number" name="duration_days" value="{{ old('duration_days', $plan->duration_days) }}" class="pr-12 w-full border-gray-200 rounded-lg text-sm focus:ring-orange-500 focus:border-orange-500" required>
-                                <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none border-l border-gray-200 my-2">
-                                    <span class="pl-3 text-gray-400 text-sm font-medium">Días</span>
-                                </div>
-                            </div>
-                        </div>
+                        @include('planes.partials.duracion', ['value' => old('duration_value', $plan->duration_value), 'unit' => old('duration_unit', $plan->duration_unit)])
                     </div>
 
                     <!-- Descripción -->

@@ -105,8 +105,8 @@ class MemberController extends Controller
         $siguienteId = $ultimoSocio ? $ultimoSocio->id + 1 : 1;
         $folio = 'MX-' . str_pad($siguienteId + 9000, 4, '0', STR_PAD_LEFT);
 
-        // 3. Calcular la fecha de vencimiento
-        $fechaVencimiento = \Carbon\Carbon::today()->addDays($plan->duration_days);
+        // 3. Calcular la fecha de vencimiento según la duración del plan (días/meses/años)
+        $fechaVencimiento = $plan->extend(\Carbon\Carbon::today());
 
         // 4. Guardar la fotografía si existe
         $rutaImagen = null;
@@ -212,7 +212,7 @@ class MemberController extends Controller
                     ? $member->expiration_date 
                     : $hoy;
 
-        $nuevaVigencia = $fechaBase->copy()->addDays($plan->duration_days);
+        $nuevaVigencia = $plan->extend($fechaBase);
 
         // 1. Actualizar la membresía del socio
         $member->update([
@@ -357,9 +357,12 @@ class MemberController extends Controller
                 'id' => $plan->id,
                 'name' => $plan->name,
                 'price' => (float)$plan->price,
-                // Semestral da 180 días, los demás 30 días
-                'days' => $plan->name === 'Semestral' ? 180 : 30, 
-                'ahorro' => $plan->name === 'Semestral' ? 'AHORRO DEL 16% VS MENSUAL' : null
+                // Duración real del plan (para la vista previa y el texto del modal)
+                'duration_value' => $plan->duration_value,
+                'duration_unit' => $plan->duration_unit,
+                'days' => $plan->duration_days, // aproximado, solo para la vista previa del nuevo vencimiento
+                'label' => $plan->duracionLabel(),
+                'ahorro' => $plan->highlight_text,
             ];
         });
 
@@ -412,15 +415,11 @@ class MemberController extends Controller
             $fechaActual = now();
         }
 
-        if ($socio->plan && $socio->plan->name === 'Semestral') {
-            $socio->expiration_date = $fechaActual->addMonths(6);
+        // Extiende la vigencia según la duración del plan (días/meses/años), sin depender del nombre.
+        if ($socio->plan) {
+            $socio->expiration_date = $socio->plan->extend($fechaActual);
         } else {
-            // Usa los días del plan si están disponibles, si no, usa addMonth()
-            if(isset($socio->plan->duration_days)){
-                $socio->expiration_date = $fechaActual->addDays($socio->plan->duration_days);
-            } else {
-                $socio->expiration_date = $fechaActual->addMonth();
-            }
+            $socio->expiration_date = $fechaActual->copy()->addMonth();
         }
 
         $socio->is_active = true;

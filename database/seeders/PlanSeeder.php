@@ -14,7 +14,8 @@ class PlanSeeder extends Seeder
             'name' => 'Mensual',
             'price' => 500.00,
             'description' => 'Acceso completo a todas las áreas del gimnasio. Cobro recurrente o pago único sin plazos forzosos.',
-            'duration_days' => 30,
+            'duration_value' => 1,
+            'duration_unit' => 'months',
             'highlight_text' => null, // No tiene texto destacado
             'color' => 'blue',
             'is_active' => true,
@@ -25,9 +26,22 @@ class PlanSeeder extends Seeder
             'name' => 'Semestral',
             'price' => 2500.00,
             'description' => 'Acceso ininterrumpido por 6 meses. Incluye asesoría nutricional inicial y un ahorro del 16% comparado con el plan mensual.',
-            'duration_days' => 180,
+            'duration_value' => 6,
+            'duration_unit' => 'months',
             'highlight_text' => 'Ahorro del 16% vs mensual',
             'color' => 'orange',
+            'is_active' => true,
+        ]);
+
+        // 3. Plan Anual (Borde Verde)
+        Plan::create([
+            'name' => 'Anual',
+            'price' => 4500.00,
+            'description' => 'Un año completo de acceso con el mayor ahorro. Ideal para socios comprometidos.',
+            'duration_value' => 1,
+            'duration_unit' => 'years',
+            'highlight_text' => 'Ahorro del 25% vs mensual',
+            'color' => 'green',
             'is_active' => true,
         ]);
     }
