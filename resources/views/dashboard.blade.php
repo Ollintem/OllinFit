@@ -88,7 +88,16 @@
                 <div>
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Accesos Hoy</p>
                     <h3 class="text-2xl font-black text-gray-900">{{ $accesosHoy ?? 0 }}</h3>
-                    @if($crecimientoAccesos >= 0)
+                    @if(is_null($crecimientoAccesos))
+                        {{-- Ayer no hubo entradas: no hay base para un porcentaje --}}
+                        @if(($accesosHoy ?? 0) > 0)
+                            <span class="text-[10px] font-bold text-emerald-500 mt-1 block">▲ Sin dato de ayer</span>
+                        @else
+                            <span class="text-[10px] font-bold text-gray-400 mt-1 block">— Sin cambios</span>
+                        @endif
+                    @elseif($crecimientoAccesos == 0)
+                        <span class="text-[10px] font-bold text-gray-400 mt-1 block">— Igual que ayer</span>
+                    @elseif($crecimientoAccesos > 0)
                         <span class="text-[10px] font-bold text-emerald-500 mt-1 block">▲ +{{ number_format($crecimientoAccesos, 1) }}% vs ayer</span>
                     @else
                         <span class="text-[10px] font-bold text-red-500 mt-1 block">▼ {{ number_format($crecimientoAccesos, 1) }}% vs ayer</span>

@@ -84,9 +84,13 @@ class DashboardController extends Controller
 
         // 5. SOLUCIÓN AL STOCK: Filtramos para que no cuente los que ya están en 0 (Agotados)
         $sociosActivos = Member::count();
-        $accesosHoy = AccessLog::whereDate('created_at', Carbon::today())->count();
-        $accesosAyer = AccessLog::whereDate('created_at', Carbon::yesterday())->count();
-        $crecimientoAccesos = $accesosAyer > 0 ? (($accesosHoy - $accesosAyer) / $accesosAyer) * 100 : 0;
+        // Solo contamos las ENTRADAS reales (no las salidas ni los accesos denegados),
+        // para que una persona que entra y sale cuente como un único acceso del día.
+        $accesosHoy = AccessLog::where('status', 'Entrada')->whereDate('created_at', Carbon::today())->count();
+        $accesosAyer = AccessLog::where('status', 'Entrada')->whereDate('created_at', Carbon::yesterday())->count();
+        // % de crecimiento comparando entradas de hoy vs entradas de ayer.
+        // Si ayer no hubo entradas, no hay base para un porcentaje: la vista mostrará un texto honesto.
+        $crecimientoAccesos = $accesosAyer > 0 ? (($accesosHoy - $accesosAyer) / $accesosAyer) * 100 : null;
         $sociosPorVencer = Member::whereBetween('expiration_date', [$now, $now->copy()->addDays(5)])->count();
         
         // Filtra artículos entre 1 y 5 piezas. Si quieres contar los de 0, cambia el > 0 a >= 0
@@ -103,7 +107,7 @@ class DashboardController extends Controller
         return view('dashboard', compact(
             'estadoCaja', 'dineroEnCaja', 'utilidadMes', 'crecimientoUtilidad',
             'graficasDataJson', 'distribucionIngresosJson', 'ventasTienda', 'ventasMembresias', 
-            'ultimosPagos', 'sociosActivos', 'accesosHoy', 'crecimientoAccesos',
+            'ultimosPagos', 'sociosActivos', 'accesosHoy', 'accesosAyer', 'crecimientoAccesos',
             'sociosPorVencer', 'productosBajos', 'topProductos', 'totalPiezasTop', 'productoMasVendido'
         ));
     }
