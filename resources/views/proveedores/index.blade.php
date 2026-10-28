@@ -71,11 +71,11 @@
                                             
                                             <!-- Botón Editar Seguro -->
                                             <button @click="
-                                                editData.id = '{{ $prov->id }}';
-                                                editData.name = '{{ addslashes($prov->name) }}';
-                                                editData.contact_name = '{{ addslashes($prov->contact_name) }}';
-                                                editData.phone = '{{ addslashes($prov->phone) }}';
-                                                editData.email = '{{ addslashes($prov->email) }}';
+                                                editData.id = {{ Js::from($prov->id) }};
+                                                editData.name = {{ Js::from($prov->name) }};
+                                                editData.contact_name = {{ Js::from($prov->contact_name) }};
+                                                editData.phone = {{ Js::from($prov->phone) }};
+                                                editData.email = {{ Js::from($prov->email) }};
                                                 openEditModal = true;
                                             " class="p-1.5 text-orange-500 bg-orange-50 hover:bg-orange-100 rounded transition-colors" title="Editar">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
@@ -84,7 +84,7 @@
                                             <!-- Botón Eliminar (Abre el Modal Personalizado) -->
                                             <button type="button" @click="
                                                 deleteUrl = '{{ route('proveedores.destroy', $prov->id) }}';
-                                                deleteName = '{{ addslashes($prov->name) }}';
+                                                deleteName = {{ Js::from($prov->name) }};
                                                 openDeleteModal = true;
                                             " class="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded transition-colors" title="Eliminar">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>

@@ -36,8 +36,13 @@ class EmployeeController extends Controller
             'role' => 'required|exists:roles,name', 
             'phone' => 'nullable|string|max:15',
             'hire_date' => 'nullable|date',
-            'profile_photo_path' => 'nullable|image|mimes:jpeg,png,webp|max:2048', 
+            'profile_photo_path' => 'nullable|image|mimes:jpeg,png,webp|max:2048',
         ]);
+
+        // SEGURIDAD: solo un Administrador puede crear a otro Administrador.
+        if ($request->role === 'Administrador' && ! $request->user()->hasRole('Administrador')) {
+            abort(403, 'No tienes permiso para asignar el rol de Administrador.');
+        }
 
         $photoPath = null;
         if ($request->hasFile('profile_photo_path')) {
@@ -80,8 +85,19 @@ class EmployeeController extends Controller
             'role' => 'required|exists:roles,name',
             'phone' => 'nullable|string|max:15',
             'hire_date' => 'nullable|date',
-            'profile_photo_path' => 'nullable|image|mimes:jpeg,png,webp|max:2048', 
+            'profile_photo_path' => 'nullable|image|mimes:jpeg,png,webp|max:2048',
         ]);
+
+        // SEGURIDAD: las cuentas de Administrador solo las puede editar otro Administrador
+        // (evita que un rol inferior le cambie la contraseña o el rol a un admin).
+        if ($empleado->hasRole('Administrador') && ! $request->user()->hasRole('Administrador')) {
+            abort(403, 'No tienes permiso para editar a un Administrador.');
+        }
+
+        // SEGURIDAD: solo un Administrador puede otorgar el rol de Administrador.
+        if ($request->role === 'Administrador' && ! $request->user()->hasRole('Administrador')) {
+            abort(403, 'No tienes permiso para asignar el rol de Administrador.');
+        }
 
         // Preparamos los datos básicos (excluyendo campos especiales)
         $data = [
@@ -120,6 +136,21 @@ class EmployeeController extends Controller
     // 6. Eliminar al empleado
     public function destroy(User $empleado)
     {
+        // SEGURIDAD: no puedes eliminar tu propia cuenta (evita quedarte fuera del sistema).
+        if ($empleado->id === auth()->id()) {
+            return redirect()->route('empleados.index')->with('error', 'No puedes eliminar tu propia cuenta.');
+        }
+
+        // SEGURIDAD: solo un Administrador puede eliminar a otro Administrador.
+        if ($empleado->hasRole('Administrador') && ! auth()->user()->hasRole('Administrador')) {
+            abort(403, 'No tienes permiso para eliminar a un Administrador.');
+        }
+
+        // SEGURIDAD: no se puede eliminar al último Administrador del sistema.
+        if ($empleado->hasRole('Administrador') && User::role('Administrador')->count() <= 1) {
+            return redirect()->route('empleados.index')->with('error', 'No puedes eliminar al último Administrador del sistema.');
+        }
+
         // Borramos su foto del servidor para liberar espacio
         if ($empleado->profile_photo_path) {
             Storage::disk('public')->delete($empleado->profile_photo_path);

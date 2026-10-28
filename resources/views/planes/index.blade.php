@@ -105,7 +105,7 @@
                         </a>
 
                         @if(($plan->members_count ?? 0) === 0)
-                            <button type="button" onclick="confirmarEliminacionPlan({{ $plan->id }}, '{{ $plan->name }}')" class="flex items-center gap-1 text-[11px] font-bold text-gray-400 hover:text-red-600 transition-colors uppercase tracking-wide cursor-pointer">
+                            <button type="button" data-id="{{ $plan->id }}" data-nombre="{{ $plan->name }}" onclick="confirmarEliminacionPlan(this)" class="flex items-center gap-1 text-[11px] font-bold text-gray-400 hover:text-red-600 transition-colors uppercase tracking-wide cursor-pointer">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 Eliminar
                             </button>
@@ -161,10 +161,12 @@
 
     <!-- Script para Modal de Eliminación -->
     <script>
-        function confirmarEliminacionPlan(id, nombre) {
+        function confirmarEliminacionPlan(el) {
+            const id = el.dataset.id;
+            const nombre = el.dataset.nombre;
             const modal = document.getElementById('modal-delete-plan');
             const modalContent = document.getElementById('modal-delete-plan-content');
-            
+
             document.getElementById('delete-plan-name').textContent = nombre;
 
             let urlBase = '{{ route("planes.destroy", ":id") }}';

@@ -121,7 +121,7 @@
                     <tbody class="divide-y divide-gray-50">
                         @if ($productos->where('is_service', 1)->count() > 0)
                             @foreach ($productos->where('is_service', 1) as $acc)
-                                <tr class="hover:bg-gray-50/60 transition-colors" x-show="filterRow('{{ $acc->name }}')">
+                                <tr class="hover:bg-gray-50/60 transition-colors" x-show="filterRow(@js($acc->name))">
                                     <td class="py-3.5 px-4 font-bold text-gray-800">{{ $acc->name }}</td>
                                     <td class="py-3.5 px-4 font-extrabold text-orange-600">
                                         ${{ number_format($acc->price, 2) }}</td>
@@ -176,7 +176,7 @@
                     <tbody class="divide-y divide-gray-50">
                         @if ($productos->where('is_service', 0)->count() > 0)
                             @foreach ($productos->where('is_service', 0) as $prod)
-                                <tr class="hover:bg-gray-50/60 transition-colors" x-show="filterRow('{{ $prod->name }}')">
+                                <tr class="hover:bg-gray-50/60 transition-colors" x-show="filterRow(@js($prod->name))">
                                     <td class="py-3.5 px-4">
                                         <div class="w-10 h-10 rounded-xl bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200">
                                             @if ($prod->image_path)
