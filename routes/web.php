@@ -95,20 +95,20 @@ Route::middleware(['auth', 'active'])->group(function () {
         
         // 1. Registro de Nuevos Socios (RUTAS ESTÁTICAS ARRIBA)
         Route::get('socios/create', [MemberController::class, 'create'])->name('socios.create')->middleware('permission:crear_socios');
-        Route::post('socios', [MemberController::class, 'store'])->name('socios.store')->middleware('permission:crear_socios');
+        Route::post('socios', [MemberController::class, 'store'])->name('socios.store')->middleware(['permission:crear_socios', 'throttle:30,1']);
 
         // 2. Renovaciones de Membresías
-        Route::post('socios/{id}/renovar', [MemberController::class, 'renovarMensualidad'])->name('socios.renovar')->middleware('permission:renovar_socios');
-        Route::post('socios/{member}/renovar', [MemberController::class, 'renew'])->name('socios.renew')->middleware('permission:renovar_socios');
+        Route::post('socios/{id}/renovar', [MemberController::class, 'renovarMensualidad'])->name('socios.renovar')->middleware(['permission:renovar_socios', 'throttle:30,1']);
+        Route::post('socios/{member}/renovar', [MemberController::class, 'renew'])->name('socios.renew')->middleware(['permission:renovar_socios', 'throttle:30,1']);
 
         // 3. Punto de Venta y Tienda (Cobra ingresos extras)
         Route::get('punto-de-venta', [SaleController::class, 'index'])->name('sales.index')->middleware('permission:usar_pos');
-        Route::post('punto-de-venta', [SaleController::class, 'store'])->name('sales.store')->middleware('permission:usar_pos');
+        Route::post('punto-de-venta', [SaleController::class, 'store'])->name('sales.store')->middleware(['permission:usar_pos', 'throttle:30,1']);
 
        // 4. Gastos y Compras (Salidas de efectivo)
         Route::get('gastos', [App\Http\Controllers\ExpenseController::class, 'index'])->name('gastos.index')->middleware('permission:ver_gastos');
         Route::get('gastos/create', [App\Http\Controllers\ExpenseController::class, 'create'])->name('gastos.create')->middleware('permission:crear_gastos');
-        Route::post('gastos', [App\Http\Controllers\ExpenseController::class, 'store'])->name('gastos.store')->middleware('permission:crear_gastos');
+        Route::post('gastos', [App\Http\Controllers\ExpenseController::class, 'store'])->name('gastos.store')->middleware(['permission:crear_gastos', 'throttle:30,1']);
         // NUEVAS RUTAS: Editar, Actualizar y Eliminar
         Route::get('gastos/{gasto}/edit', [App\Http\Controllers\ExpenseController::class, 'edit'])->name('gastos.edit')->middleware('permission:editar_gastos');
         Route::put('gastos/{gasto}', [App\Http\Controllers\ExpenseController::class, 'update'])->name('gastos.update')->middleware('permission:editar_gastos');
@@ -135,8 +135,8 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // MÓDULO: CONTROL DE ACCESO
     Route::get('/acceso', [App\Http\Controllers\AccessController::class, 'index'])->name('acceso.index')->middleware('permission:ver_acceso');
-    Route::post('/acceso/escanear', [App\Http\Controllers\AccessController::class, 'scan'])->name('acceso.scan')->middleware('permission:operar_acceso');
-    Route::post('/acceso/liberar/{member}', [App\Http\Controllers\AccessController::class, 'release'])->name('acceso.release')->middleware('permission:operar_acceso');
+    Route::post('/acceso/escanear', [App\Http\Controllers\AccessController::class, 'scan'])->name('acceso.scan')->middleware(['permission:operar_acceso', 'throttle:60,1']);
+    Route::post('/acceso/liberar/{member}', [App\Http\Controllers\AccessController::class, 'release'])->name('acceso.release')->middleware(['permission:operar_acceso', 'throttle:60,1']);
 
 
 
@@ -170,8 +170,8 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // MÓDULO: CAJA
     Route::get('/flujo-de-caja', [CashRegisterController::class, 'index'])->name('caja.index')->middleware('permission:ver_caja');
-    Route::post('/flujo-de-caja/abrir', [CashRegisterController::class, 'open'])->name('caja.open')->middleware('permission:operar_caja');
-    Route::post('/flujo-de-caja/cerrar', [CashRegisterController::class, 'close'])->name('caja.close')->middleware('permission:operar_caja');
+    Route::post('/flujo-de-caja/abrir', [CashRegisterController::class, 'open'])->name('caja.open')->middleware(['permission:operar_caja', 'throttle:30,1']);
+    Route::post('/flujo-de-caja/cerrar', [CashRegisterController::class, 'close'])->name('caja.close')->middleware(['permission:operar_caja', 'throttle:30,1']);
     Route::get('/flujo-de-caja/historial', [CashRegisterController::class, 'historial'])->name('caja.historial')->middleware('permission:ver_caja');
 
     // Ruta para generar el modal dinámico

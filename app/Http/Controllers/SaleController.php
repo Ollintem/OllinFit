@@ -6,7 +6,9 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class SaleController extends Controller
 {
@@ -25,36 +27,69 @@ public function index()
         $cartData = json_decode($cartData, true);
     }
 
-    if (empty($cartData)) {
-        return response()->json(['error' => 'El carrito está vacío o no es válido.'], 400);
+    // Validamos la estructura del carrito en el servidor. No confiamos en el cliente.
+    $validator = Validator::make(['cart_data' => $cartData], [
+        'cart_data' => 'required|array|min:1',
+        'cart_data.*.id' => 'required|integer|exists:products,id',
+        'cart_data.*.quantity' => 'required|integer|min:1',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['error' => 'Datos de la venta inválidos.', 'detalles' => $validator->errors()], 422);
     }
 
-    \Illuminate\Support\Facades\DB::beginTransaction();
+    // Normalizamos el método de pago a un valor permitido (por defecto Efectivo).
+    $metodoPago = ucfirst(strtolower((string) $request->payment_method));
+    if (! in_array($metodoPago, ['Efectivo', 'Tarjeta'], true)) {
+        $metodoPago = 'Efectivo';
+    }
+
+    // Agrupamos las cantidades por producto (evita que líneas repetidas burlen el chequeo de stock).
+    $cantidades = [];
+    foreach ($cartData as $item) {
+        $cantidades[(int) $item['id']] = ($cantidades[(int) $item['id']] ?? 0) + (int) $item['quantity'];
+    }
+
+    DB::beginTransaction();
     try {
-        $sale = \App\Models\Sale::create([
-            'user_id' => \Illuminate\Support\Facades\Auth::id() ?? 1,
-            'total' => collect($cartData)->sum(fn(array $i) => $i['price'] * $i['quantity']),
-            'payment_method' => $request->payment_method ?? 'Efectivo',
-        ]);
+        // Bloqueamos los productos durante la transacción y los indexamos por id.
+        $productos = Product::whereIn('id', array_keys($cantidades))->lockForUpdate()->get()->keyBy('id');
 
-        foreach ($cartData as $item) {
-            $product = \App\Models\Product::find($item['id']);
-            if ($product && !$product->is_service) {
-                $product->stock -= $item['quantity'];
-                $product->save();
+        // El precio y la disponibilidad SIEMPRE se toman de la BD, nunca del carrito del cliente.
+        $total = 0;
+        foreach ($cantidades as $productId => $cantidad) {
+            $product = $productos[$productId];
+            if (! $product->is_service && $product->stock < $cantidad) {
+                DB::rollBack();
+                return response()->json([
+                    'error' => "Stock insuficiente para \"{$product->name}\". Disponible: {$product->stock}, solicitado: {$cantidad}.",
+                ], 422);
             }
-
-            if (class_exists(\App\Models\SaleItem::class)) {
-                \App\Models\SaleItem::create([
-                    'sale_id' => $sale->id,
-                    'product_id' => $item['id'],
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                ]);
-            }
+            $total += $product->price * $cantidad;
         }
 
-        \Illuminate\Support\Facades\DB::commit();
+        $sale = Sale::create([
+            'user_id' => Auth::id(),
+            'total' => $total,
+            'payment_method' => $metodoPago,
+        ]);
+
+        foreach ($cantidades as $productId => $cantidad) {
+            $product = $productos[$productId];
+
+            if (! $product->is_service) {
+                $product->decrement('stock', $cantidad);
+            }
+
+            SaleItem::create([
+                'sale_id' => $sale->id,
+                'product_id' => $productId,
+                'quantity' => $cantidad,
+                'price' => $product->price, // precio real de la BD
+            ]);
+        }
+
+        DB::commit();
 
         return response()->json([
             'success' => true,
@@ -62,7 +97,7 @@ public function index()
         ]);
 
     } catch (\Exception $e) {
-        \Illuminate\Support\Facades\DB::rollBack();
+        DB::rollBack();
         return response()->json(['error' => $e->getMessage()], 500);
     }
 }

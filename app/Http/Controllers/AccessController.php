@@ -69,7 +69,12 @@ class AccessController extends Controller
             'success' => true,
             'message' => $mensaje,
             'is_inside' => $esEntrada,
-            'member' => $member
+            // Solo datos mínimos: no exponemos email, teléfono ni foto del socio.
+            'member' => [
+                'name' => $member->name,
+                'folio' => $member->folio,
+                'is_inside' => $esEntrada,
+            ],
         ]);
     }
 
