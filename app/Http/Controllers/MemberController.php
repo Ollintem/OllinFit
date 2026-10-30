@@ -131,7 +131,7 @@ class MemberController extends Controller
         // 6. Registrar el pago de la membresía en 'payments' (única fuente del ingreso por membresías).
         // Nota: NO se crea una venta en 'sales'; esa tabla es solo para ventas del POS, para no duplicar el ingreso.
         $folioPago = 'TXN-' . strtoupper(uniqid());
-        \App\Models\Payment::create([
+        $pago = \App\Models\Payment::create([
             'member_id' => $socio->id,
             'plan_id' => $plan->id,
             'plan_name' => $plan->name,
@@ -140,14 +140,8 @@ class MemberController extends Controller
             'payment_method' => ucfirst($request->payment_method),
         ]);
 
-        // Ticket de membresía (se arma con los datos del pago, no requiere una fila en 'sales').
-        $ticketUrl = route('socios.ticket', [
-            $socio->id,
-            'plan_name'  => $plan->name,
-            'amount'     => $plan->price,
-            'method'     => $request->payment_method,
-            'folio_pago' => $folioPago,
-        ]);
+        // Ticket de membresía: se referencia por el id del pago guardado (se arma desde la BD).
+        $ticketUrl = route('socios.ticket', [$socio->id, $pago->id]);
 
         // 7. Redirigir al index con mensaje y activar la impresión automática del ticket
         return redirect()->route('socios.index')->with([
@@ -196,63 +190,20 @@ class MemberController extends Controller
 
         return view('socios.show', compact('member', 'diasRestantes', 'porcentajeProgreso', 'fechaInicio', 'planes', 'pagos', 'ultimosAccesos'));  
         }
-            // Procesar la renovación del plan
-    // Procesar la renovación del plan
-    public function renew(Request $request, \App\Models\Member $member)
+    public function ticket(\App\Models\Member $member, \App\Models\Payment $payment)
     {
-        $request->validate([
-            'plan_id' => 'required|exists:plans,id',
-            'payment_method' => 'required|in:efectivo,tarjeta',
-        ]);
+        // El ticket se arma SIEMPRE desde el pago guardado, nunca desde la query string,
+        // para que no se pueda fabricar un recibo con montos o folios inventados.
+        abort_unless($payment->member_id === $member->id, 404);
 
-        $plan = \App\Models\Plan::find($request->plan_id);
-        $hoy = \Carbon\Carbon::today();
+        $data = [
+            'plan_name'  => $payment->plan_name,
+            'amount'     => $payment->amount,
+            'method'     => strtolower($payment->payment_method), // la vista compara en minúscula
+            'folio_pago' => $payment->folio_pago,
+        ];
+        $fecha = $payment->created_at->format('d/m/Y H:i:s');
 
-        $fechaBase = ($member->expiration_date && $member->expiration_date->isFuture()) 
-                    ? $member->expiration_date 
-                    : $hoy;
-
-        $nuevaVigencia = $plan->extend($fechaBase);
-
-        // 1. Actualizar la membresía del socio
-        $member->update([
-            'plan_id' => $plan->id,
-            'expiration_date' => $nuevaVigencia,
-            'is_active' => true,
-        ]);
-
-        $folioPago = 'TXN-' . strtoupper(uniqid());
-
-        // 2. ¡LA CLAVE! Registrar el pago en la tabla payments para que alimente Reportes y Flujo de Caja
-        \App\Models\Payment::create([
-            'member_id' => $member->id,
-            'plan_id' => $plan->id,
-            'plan_name' => $plan->name,
-            'folio_pago' => $folioPago,
-            'amount' => $plan->price,
-            'payment_method' => ucfirst($request->payment_method), // Guarda 'Efectivo' o 'Tarjeta' con la primera letra mayúscula
-        ]);
-
-        // 3. Construir la URL del ticket
-        $urlTicket = route('socios.ticket', [
-            $member->id,                        
-            'plan_name'  => $plan->name,            
-            'amount'     => $plan->price,           
-            'method'     => $request->payment_method, 
-            'folio_pago' => $folioPago
-        ]);
-
-        // 4. Redirigir al perfil del socio con éxito e impresión del ticket
-        return redirect()->route('socios.show', $member->id)
-                         ->with('success', 'Pago registrado, plan renovado y agregado a finanzas exitosamente.')
-                         ->with('imprimir_ticket', $urlTicket);
-    }
-    public function ticket(Request $request, \App\Models\Member $member)
-    {
-        // Recogemos los datos que mandamos por la URL
-        $data = $request->only(['plan_name', 'amount', 'method', 'folio_pago']);
-        $fecha = now()->format('d/m/Y H:i:s');
-        
         return view('socios.ticket', compact('member', 'data', 'fecha'));
     }
     // Vista completa del historial de pagos
@@ -389,6 +340,7 @@ class MemberController extends Controller
         $request->validate([
             'payment_method' => 'required|in:efectivo,tarjeta',
             'amount_received' => 'nullable|numeric|min:0', // El efectivo recibido
+            'plan_id' => 'nullable|exists:plans,id', // si se cambia de plan, debe existir
         ]);
 
         $socio = \App\Models\Member::findOrFail($id);
@@ -431,7 +383,7 @@ class MemberController extends Controller
         // No se crea venta en 'sales' para no duplicar el ingreso en caja/reportes.
         if ($precio > 0) {
             $folioPago = 'TXN-' . strtoupper(uniqid());
-            \App\Models\Payment::create([
+            $pago = \App\Models\Payment::create([
                 'member_id' => $socio->id,
                 'plan_id' => $socio->plan->id,
                 'plan_name' => $socio->plan->name,
@@ -440,14 +392,8 @@ class MemberController extends Controller
                 'payment_method' => ucfirst($request->payment_method),
             ]);
 
-            // Ticket de membresía, armado con los datos del pago.
-            $ticketUrl = route('socios.ticket', [
-                $socio->id,
-                'plan_name'  => $socio->plan->name,
-                'amount'     => $precio,
-                'method'     => $request->payment_method,
-                'folio_pago' => $folioPago,
-            ]);
+            // Ticket de membresía: se referencia por el id del pago guardado (se arma desde la BD).
+            $ticketUrl = route('socios.ticket', [$socio->id, $pago->id]);
         }
 
         // Retornamos a la vista activando el disparador de impresión

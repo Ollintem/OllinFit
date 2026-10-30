@@ -99,7 +99,6 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         // 2. Renovaciones de Membresías
         Route::post('socios/{id}/renovar', [MemberController::class, 'renovarMensualidad'])->name('socios.renovar')->middleware(['permission:renovar_socios', 'throttle:30,1']);
-        Route::post('socios/{member}/renovar', [MemberController::class, 'renew'])->name('socios.renew')->middleware(['permission:renovar_socios', 'throttle:30,1']);
 
         // 3. Punto de Venta y Tienda (Cobra ingresos extras)
         Route::get('punto-de-venta', [SaleController::class, 'index'])->name('sales.index')->middleware('permission:usar_pos');
@@ -125,7 +124,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('socios/{member}/edit', [MemberController::class, 'edit'])->name('socios.edit')->middleware('permission:editar_socios');
     Route::put('socios/{member}', [MemberController::class, 'update'])->name('socios.update')->middleware('permission:editar_socios');
     Route::delete('socios/{member}', [MemberController::class, 'destroy'])->name('socios.destroy')->middleware('permission:eliminar_socios');
-    Route::get('socios/{member}/ticket', [MemberController::class, 'ticket'])->name('socios.ticket')->middleware('permission:ver_socios');
+    Route::get('socios/{member}/ticket/{payment}', [MemberController::class, 'ticket'])->name('socios.ticket')->middleware('permission:ver_socios');
     Route::get('socios/{member}/pagos', [MemberController::class, 'payments'])->name('socios.pagos')->middleware('permission:ver_socios');
     Route::get('socios/{member}/accesos', [MemberController::class, 'accesses'])->name('socios.accesos')->middleware('permission:ver_socios');
 

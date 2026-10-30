@@ -241,7 +241,7 @@
 
                                         <!-- 6. Columna TICKET (Botón de Re-impresión) -->
                                         <td class="px-6 py-4 text-center">
-                                            <a href="{{ route('socios.ticket', ['member' => $member->id, 'plan_name' => $pago->plan_name, 'amount' => $pago->amount, 'method' => strtolower($pago->payment_method), 'folio_pago' => $pago->folio_pago]) }}" 
+                                            <a href="{{ route('socios.ticket', ['member' => $member->id, 'payment' => $pago->id]) }}"
                                                target="_blank"
                                                class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
                                                title="Imprimir copia del ticket">
@@ -272,7 +272,7 @@
     <div id="renew-modal" class="fixed inset-0 z-50 hidden bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform duration-300" id="renew-modal-content">
             
-            <form action="{{ route('socios.renew', $member->id) }}" method="POST">
+            <form action="{{ route('socios.renovar', $member->id) }}" method="POST">
                 @csrf
                 
                 <!-- Header del Modal -->
