@@ -130,6 +130,32 @@ class EmployeeController extends Controller
         // Actualizamos su rol en Spatie (syncRoles borra el anterior y asigna el nuevo)
         $empleado->syncRoles([$request->role]);
 
+        // Panel de permisos por empleado (override del rol). Solo el Administrador puede
+        // configurarlo, para no abrir una vía de escalamiento de privilegios.
+        if ($request->user()->hasRole('Administrador')) {
+            // Universo editable: todos los permisos de la matriz excepto los "solo_admin".
+            $todos = collect(config('permisos'))
+                ->reject(fn ($modulo) => ! empty($modulo['solo_admin']))
+                ->flatMap(fn ($modulo) => array_keys($modulo['permisos']))
+                ->all();
+
+            // Lo que el Administrador dejó marcado (acotado al universo editable).
+            $marcados = array_values(array_intersect((array) $request->input('permissions', []), $todos));
+
+            // Permisos que otorga el ROL recién asignado (acotados al universo editable).
+            $empleado->load('roles.permissions');
+            $delRol = array_values(array_intersect($empleado->getPermissionsViaRoles()->pluck('name')->all(), $todos));
+
+            // Directos = marcados que NO vienen del rol. Denegados = del rol que quedaron sin marcar.
+            $directos  = array_values(array_diff($marcados, $delRol));
+            $denegados = array_values(array_diff($delRol, $marcados));
+
+            $empleado->syncPermissions($directos);
+
+            $idsDenegados = \Spatie\Permission\Models\Permission::whereIn('name', $denegados)->pluck('id')->all();
+            $empleado->deniedPermissions()->sync($idsDenegados);
+        }
+
         return redirect()->route('empleados.index')->with('success', 'Datos del empleado actualizados.');
     }
 

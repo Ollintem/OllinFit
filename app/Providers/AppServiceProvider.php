@@ -20,8 +20,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // El rol Administrador pasa todas las verificaciones de permisos,
-        // así nunca queda fuera de un módulo nuevo sin tener que marcarle cada permiso.
-        Gate::before(fn ($user, $ability) => $user->hasRole('Administrador') ? true : null);
+        // Evaluación de permisos con denegaciones por empleado:
+        // 1) El Administrador pasa todo (nunca se auto-bloquea).
+        // 2) Si el permiso está DENEGADO para el empleado, se bloquea aunque su rol lo otorgue.
+        // 3) El resto cae en la evaluación normal de Spatie (rol + permisos directos).
+        Gate::before(function ($user, $ability) {
+            if ($user->hasRole('Administrador')) {
+                return true;
+            }
+
+            if ($user->hasDeniedPermission($ability)) {
+                return false;
+            }
+
+            return null;
+        });
     }
 }

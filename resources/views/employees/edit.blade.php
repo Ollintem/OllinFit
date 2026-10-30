@@ -113,6 +113,18 @@
                 </div>
             </div>
 
+            <!-- Panel de permisos por empleado (override del rol) — solo Administrador -->
+            @if (auth()->user()->hasRole('Administrador'))
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+                    <div class="flex items-center gap-2 mb-1">
+                        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                        <h2 class="text-base font-bold text-gray-800">Permisos y accesos de este empleado</h2>
+                    </div>
+
+                    @include('employees.partials.matriz-permisos-empleado', ['empleado' => $empleado])
+                </div>
+            @endif
+
             <!-- Botones -->
             <div class="flex items-center justify-end gap-4 mt-6">
                 <a href="{{ route('empleados.index') }}" class="text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">
