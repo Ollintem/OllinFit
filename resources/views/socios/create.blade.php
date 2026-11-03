@@ -9,6 +9,23 @@
             <h1 class="text-2xl font-bold text-gray-800">Registrar Nuevo Socio</h1>
         </div>
 
+        {{-- Mensajes de error (validación o candado de cobro) para que el alta no falle "en silencio" --}}
+        @if (session('error'))
+            <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                {{ session('error') }}
+            </div>
+        @endif
+        @if ($errors->any())
+            <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                <p class="font-bold mb-1">Revisa estos datos:</p>
+                <ul class="list-disc list-inside space-y-0.5">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <form action="{{ route('socios.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
 
