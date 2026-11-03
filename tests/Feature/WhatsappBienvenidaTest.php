@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\EnviarBienvenidaWhatsapp;
+use App\Jobs\EnviarBienvenidaSocio;
 use App\Models\Member;
 use App\Models\Plan;
 use App\Services\WhatsappSender;
@@ -55,7 +55,7 @@ class WhatsappBienvenidaTest extends TestCase
         Http::fake(['ws.test/*' => Http::response(['ok' => true], 200)]);
 
         $socio = $this->socio();
-        dispatch_sync(new EnviarBienvenidaWhatsapp($socio->id));
+        dispatch_sync(new EnviarBienvenidaSocio($socio->id));
 
         Http::assertSent(function ($request) use ($socio) {
             return str_ends_with($request->url(), '/send')
@@ -72,7 +72,7 @@ class WhatsappBienvenidaTest extends TestCase
         Http::fake();
 
         $socio = $this->socio();
-        dispatch_sync(new EnviarBienvenidaWhatsapp($socio->id));
+        dispatch_sync(new EnviarBienvenidaSocio($socio->id));
 
         Http::assertNothingSent();
     }
@@ -83,7 +83,7 @@ class WhatsappBienvenidaTest extends TestCase
         Http::fake();
 
         $socio = $this->socio(['phone' => null]);
-        dispatch_sync(new EnviarBienvenidaWhatsapp($socio->id));
+        dispatch_sync(new EnviarBienvenidaSocio($socio->id));
 
         Http::assertNothingSent();
     }

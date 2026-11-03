@@ -40,9 +40,25 @@ class WhatsappSender
 
     /**
      * Envía un mensaje con un QR (generado en el Node a partir de $qrData).
-     * Nunca lanza excepción hacia arriba: si falla, lo registra y devuelve false.
      */
     public function enviarConQr(string $telefono, string $mensaje, string $qrData): bool
+    {
+        return $this->enviar($telefono, $mensaje, $qrData);
+    }
+
+    /**
+     * Envía un mensaje de solo texto (p. ej. el recordatorio de vencimiento).
+     */
+    public function enviarTexto(string $telefono, string $mensaje): bool
+    {
+        return $this->enviar($telefono, $mensaje, null);
+    }
+
+    /**
+     * Llama al microservicio. Nunca lanza excepción hacia arriba: si falla, lo
+     * registra y devuelve false (para no afectar el alta ni el comando).
+     */
+    private function enviar(string $telefono, string $mensaje, ?string $qrData): bool
     {
         if (! $this->habilitado()) {
             return false;
@@ -54,15 +70,16 @@ class WhatsappSender
             return false;
         }
 
+        $payload = ['to' => $destino, 'message' => $mensaje];
+        if ($qrData !== null) {
+            $payload['qr'] = $qrData;
+        }
+
         try {
             $respuesta = Http::withToken((string) config('services.whatsapp.token'))
                 ->timeout(15)
                 ->acceptJson()
-                ->post(rtrim((string) config('services.whatsapp.url'), '/') . '/send', [
-                    'to' => $destino,
-                    'message' => $mensaje,
-                    'qr' => $qrData,
-                ]);
+                ->post(rtrim((string) config('services.whatsapp.url'), '/') . '/send', $payload);
 
             if ($respuesta->failed()) {
                 Log::warning('WhatsApp: el microservicio respondió con error.', [
