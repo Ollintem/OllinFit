@@ -5,19 +5,23 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Notifications\Notifiable;
 
 class Member extends Model
 {
+    use Notifiable; // permite enviar notificaciones (email) al socio
+
     // Los campos que permitimos guardar masivamente
     protected $fillable = [
         'folio',
-         'name', 
-         'last_name', 
-         'email', 
-         'phone', 
-        'profile_photo_path', 
-        'plan_id', 
-        'expiration_date', 
+         'name',
+         'last_name',
+         'email',
+         'phone',
+        'profile_photo_path',
+        'plan_id',
+        'expiration_date',
+        'reminder_sent_for',
         'is_active',
         'is_inside'
     ];
@@ -25,6 +29,7 @@ class Member extends Model
     // Convertimos la fecha de la base de datos a un objeto Carbon automáticamente
     protected $casts = [
         'expiration_date' => 'date',
+        'reminder_sent_for' => 'date',
         'is_active' => 'boolean',
     ];
 
