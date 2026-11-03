@@ -140,6 +140,11 @@ class MemberController extends Controller
             'payment_method' => ucfirst($request->payment_method),
         ]);
 
+        // Mensaje de bienvenida + QR por WhatsApp (en segundo plano; no bloquea ni afecta el alta).
+        if (config('services.whatsapp.enabled')) {
+            \App\Jobs\EnviarBienvenidaWhatsapp::dispatch($socio->id);
+        }
+
         // Ticket de membresía: se referencia por el id del pago guardado (se arma desde la BD).
         $ticketUrl = route('socios.ticket', [$socio->id, $pago->id]);
 
