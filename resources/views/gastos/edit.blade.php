@@ -29,6 +29,7 @@
 
                 <form action="{{ route('gastos.update', $gasto->id) }}" method="POST" class="space-y-6">
                     @csrf
+            <x-form-errors />
                     @method('PUT')
 
                     <!-- CONDICIONAL: Compra a Proveedor vs Gasto General -->

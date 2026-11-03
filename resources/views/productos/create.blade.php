@@ -11,6 +11,7 @@
 
         <form action="{{ route('productos.store') }}" method="POST" enctype="multipart/form-data" class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
             @csrf
+            <x-form-errors />
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <!-- Nombre -->

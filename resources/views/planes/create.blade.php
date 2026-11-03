@@ -11,6 +11,7 @@
 
         <form action="{{ route('planes.store') }}" method="POST" class="space-y-6">
             @csrf
+            <x-form-errors />
 
             <!-- Tarjeta 1: Detalles de la Membresía -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">

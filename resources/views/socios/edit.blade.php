@@ -17,6 +17,7 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
             <form action="{{ route('socios.update', $member->id) }}" method="POST" enctype="multipart/form-data" class="space-y-8">
                 @csrf
+            <x-form-errors />
                 @method('PUT')
 
                 <!-- SECCIÓN 1: Fotografía y Contexto -->

@@ -11,6 +11,7 @@
 
         <form action="{{ route('planes.update', $plan->id) }}" method="POST" class="space-y-6">
             @csrf
+            <x-form-errors />
             @method('PUT')
 
             <!-- Tarjeta 1: Detalles de la Membresía -->

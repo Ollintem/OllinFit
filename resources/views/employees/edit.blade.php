@@ -12,6 +12,7 @@
         <!-- FORMULARIO DE EDICIÓN -->
         <form action="{{ route('empleados.update', $empleado->id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
+            <x-form-errors />
             @method('PUT') <!-- Directiva obligatoria para actualizar en Laravel -->
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
