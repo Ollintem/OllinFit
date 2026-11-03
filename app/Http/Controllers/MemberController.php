@@ -133,7 +133,7 @@ class MemberController extends Controller
         $folioPago = 'TXN-' . strtoupper(uniqid());
         $pago = \App\Models\Payment::create([
             'member_id' => $socio->id,
-            'plan_id' => $plan->id,
+            'cash_register_id' => \App\Models\CashRegister::abierta(auth()->id())?->id,
             'plan_name' => $plan->name,
             'folio_pago' => $folioPago,
             'amount' => $plan->price,
@@ -390,7 +390,7 @@ class MemberController extends Controller
             $folioPago = 'TXN-' . strtoupper(uniqid());
             $pago = \App\Models\Payment::create([
                 'member_id' => $socio->id,
-                'plan_id' => $socio->plan->id,
+                'cash_register_id' => \App\Models\CashRegister::abierta(auth()->id())?->id,
                 'plan_name' => $socio->plan->name,
                 'folio_pago' => $folioPago,
                 'amount' => $precio,

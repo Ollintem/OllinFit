@@ -70,6 +70,7 @@ public function index()
 
         $sale = Sale::create([
             'user_id' => Auth::id(),
+            'cash_register_id' => \App\Models\CashRegister::abierta(Auth::id())?->id,
             'total' => $total,
             'payment_method' => $metodoPago,
         ]);

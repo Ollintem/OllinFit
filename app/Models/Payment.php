@@ -10,7 +10,7 @@ class Payment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'member_id', 'plan_name', 'amount', 'payment_method', 'folio_pago'
+        'member_id', 'cash_register_id', 'plan_name', 'amount', 'payment_method', 'folio_pago'
     ];
 
     public function member()
