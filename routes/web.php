@@ -29,6 +29,13 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // Integraciones (correo, WhatsApp): solo Administrador
+    Route::middleware('role:Administrador')->group(function () {
+        Route::get('/integraciones', [\App\Http\Controllers\IntegracionesController::class, 'index'])->name('integraciones.index');
+        Route::put('/integraciones/correo', [\App\Http\Controllers\IntegracionesController::class, 'guardarCorreo'])->name('integraciones.correo');
+        Route::post('/integraciones/correo/prueba', [\App\Http\Controllers\IntegracionesController::class, 'probarCorreo'])->name('integraciones.correo.prueba');
+    });
+
     // MÓDULOS CON PROTECCIÓN GRANULAR (RBAC)
     // =========================================================
 
