@@ -151,15 +151,15 @@
 
     <!-- Perfil y Cerrar Sesión -->
     <div class="p-4 border-t border-zinc-900 bg-zinc-950 flex items-center justify-between">
-        <div class="flex items-center gap-3 overflow-hidden">
+        <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 overflow-hidden rounded-lg hover:bg-zinc-900 transition-colors p-1 -m-1" title="Mi perfil">
             <div class="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 text-orange-500 font-bold flex items-center justify-center shrink-0">
                 {{ substr(Auth::user()->name ?? 'E', 0, 1) }}
             </div>
             <div x-show="hovered" x-transition.opacity.duration.200ms class="truncate whitespace-nowrap">
                 <p class="text-[13px] font-bold text-white truncate">{{ Auth::user()->name ?? 'Eduardo' }}</p>
-                <p class="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Admin Ollinfit</p>
+                <p class="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Mi perfil</p>
             </div>
-        </div>
+        </a>
 
         <form method="POST" action="{{ route('logout') }}" x-show="hovered" x-transition.opacity>
             @csrf

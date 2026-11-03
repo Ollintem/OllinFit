@@ -24,6 +24,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Dashboard principal con métricas dinámicas
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:ver_dashboard')->name('dashboard');
 
+    // Perfil del usuario: cada quien edita el suyo (sin permiso de módulo)
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
     // MÓDULOS CON PROTECCIÓN GRANULAR (RBAC)
     // =========================================================
 
