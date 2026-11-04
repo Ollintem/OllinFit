@@ -64,8 +64,8 @@ products 1─* expense_items *─1 expenses *─1 suppliers
 - **Controladores** (`app/Http/Controllers`): `Dashboard`, `Member` (socios + renovaciones), `Access` (QR), `Plan`, `Product`, `Sale` (POS), `CashRegister` (caja), `Expense` (gastos), `Supplier`, `Report`, `Employee`, `Role`, `Profile`.
 - **Middleware** (`app/Http/Middleware`):
   - `CheckCashRegisterOpen` — bloquea rutas de cobro si no hay caja abierta (redirige a `caja.index`).
-  - `CheckActiveUser` (alias `active`) — actualmente en *bypass* (deja pasar todo).
-  - Alias Spatie: `role`, `permission`, `role_or_permission` (en `bootstrap/app.php`).
+  - `CheckActiveUser` (alias `active`) — **activo**: bloquea el acceso a cuentas con `is_active = false`.
+  - Alias Spatie: `role`, `permission`, `role_or_permission` (en `bootstrap/app.php`). El `permission:` protege **todos** los módulos (ver `config/permisos.php`); varias rutas de cobro/acceso además tienen `throttle`.
 - **Rutas**: todo en `routes/web.php` dentro de `auth` + `active`. `/` muestra el login.
 - **Vistas** (`resources/views`): `socios/`, `acceso/`, `planes/`, `productos/`, `sales/` (POS, ticket, historial), `caja/`, `gastos/`, `proveedores/`, `reports/`, `employees/`, `roles/`, `dashboard.blade.php`, `components/sidebar.blade.php`.
 - La lógica de negocio vive directamente en los controladores (no hay Services/Actions ni Form Requests).
@@ -75,7 +75,7 @@ products 1─* expense_items *─1 expenses *─1 suppliers
 ## 3. Estado actual — módulos terminados y funcionando
 
 - **Autenticación** (Breeze) y perfil de usuario.
-- **Empleados y Roles (RBAC)**: CRUD de empleados con foto WebP; creación/edición/eliminación de roles con permisos granulares (`mostrar_empleados`, `crear_empleados`, `editar_empleados`, `eliminar_empleados`, `mostrar_planes`, `crear_editar_planes`, `eliminar_planes`).
+- **Empleados y Roles (RBAC)**: CRUD de empleados con foto WebP; roles con matriz de permisos por módulo (fuente única: `config/permisos.php`); **permisos por empleado** (otorgar/denegar sobre el rol, solo Administrador — ver reglas 20-21). Protecciones anti-escalamiento en empleados.
 - **Planes**: CRUD completo con conteo de socios por plan.
 - **Socios**: alta con cobro y ticket automático, listado con búsqueda/filtros (activos, vencidos, inactivos, por plan) y KPIs, perfil con gafete QR y barra de progreso de vigencia, renovación por modal (JSON), edición con foto, historial de pagos y de accesos.
 - **Control de acceso QR**: escaneo vía AJAX con lógica *toggle* (entra/sale), rechazo por membresía vencida, lista de socios adentro y liberación manual.
@@ -84,7 +84,7 @@ products 1─* expense_items *─1 expenses *─1 suppliers
 - **Flujo de caja**: apertura con fondo inicial, cálculo en vivo (efectivo, tarjeta, egresos), corte con diferencia sobrante/faltante, historial de cortes.
 - **Gastos y compras**: gastos generales y compras a proveedor con detalle de productos (entrada de stock), filtros, edición de textos y eliminación con reversión de inventario.
 - **Proveedores**: alta, edición, eliminación protegida.
-- **Reportes financieros**: reporte diario de ingresos (POS, membresías, inscripciones) y egresos, balance neto, efectivo vs. tarjeta, renovaciones próximas.
+- **Reportes financieros**: reporte diario de ingresos (POS + membresías en `payments`) y egresos, balance neto, efectivo vs. tarjeta, renovaciones próximas; días anteriores solo con `ver_reportes_historicos`; **exportación a PDF** (vista de impresión del navegador).
 - **Dashboard interactivo**: estado de caja en vivo, utilidad del mes y crecimiento vs. mes anterior, gráficas filtrables (año/mes/semana), distribución tienda vs. membresías, últimos tickets, accesos de hoy vs. ayer, socios por vencer, stock bajo, top 5 productos.
 
 ---
@@ -107,7 +107,7 @@ products 1─* expense_items *─1 expenses *─1 suppliers
 
 **Socios y membresías**
 11. En pagos en efectivo, el monto recibido debe ser **≥ precio del plan** (si no, se rechaza el cobro).
-12. Vencimiento = hoy + `duration_days` del plan. Si se renueva **antes de vencer**, los días se acumulan desde la fecha de vencimiento actual.
+12. Vencimiento = fecha base extendida por la **duración del plan** (`duration_value` + `duration_unit`: días/meses/años, por calendario real con `Plan::extend()`). Si se renueva **antes de vencer**, se extiende desde la fecha de vencimiento actual.
 13. Un socio con pagos/accesos registrados **no se elimina**: se marca como inactivo.
 14. El folio se genera en el backend (`MX-` + id + 9000).
 
@@ -117,36 +117,45 @@ products 1─* expense_items *─1 expenses *─1 suppliers
 
 **Inventario / POS**
 17. Los servicios (`is_service`) no manejan stock ni imagen.
-18. Cada venta descuenta stock de los productos físicos.
-19. Dashboard: stock bajo = entre 1 y 5 piezas; "por vencer" = vence en los próximos 5 días.
+18. Cada venta descuenta stock de los productos físicos (precio tomado de la BD; rechaza venta sin stock).
+19. Dashboard: stock bajo = entre 1 y 5 piezas; "por vencer" = vence en los próximos 5 días; "Accesos Hoy" cuenta solo `status = 'Entrada'`.
+
+**Seguridad / permisos**
+20. **Permisos por empleado** (override del rol): `efectivo = (permisos del rol ∪ directos) − denegados`. Permite dar accesos extra o quitarle uno a un empleado sin tocar el rol ni afectar a otros. `User::hasPermissionTo` respeta las denegaciones (tabla `denied_permissions`). El panel vive en editar empleado y **solo lo configura el Administrador**.
+21. El rol **Administrador** pasa todas las verificaciones (`Gate::before`). Solo un Administrador puede crear/editar/eliminar a otro Administrador, asignar ese rol, o configurar permisos por empleado; no es posible auto-eliminarse ni borrar al último Administrador.
 
 ---
 
 ## 5. Deuda técnica y bugs conocidos
 
-Observados en el código; tenerlos presentes antes de tocar finanzas:
+**Resuelto recientemente** (ya no es deuda, no reintroducir):
+- Doble conteo de ingresos → una sola fuente: membresías/renovaciones en `payments`, POS en `sales`. Caja, reportes y dashboard ajustados.
+- Dashboard "caja en vivo" usa `opening_amount` + `opened_at`/`cash_register_id` (ya no `initial_amount`/`created_at`).
+- POS valida en servidor: stock suficiente, **precio desde la BD** (no del cliente), cantidades `>= 1`, `user_id` = usuario autenticado.
+- `CheckActiveUser` reactivado; `permission:` aplicado a **todos** los módulos (`config/permisos.php` es la fuente única).
+- Renovación unificada: se eliminó la ruta duplicada `socios.renew`; la vigencia se calcula con `Plan::extend()` (no por nombre de plan).
+- `ReportController::exportarPdf` implementado (renderiza `reports/pdf.blade.php`, imprime/guarda como PDF).
+- Dashboard "Accesos Hoy" cuenta solo **entradas**; % vs ayer honesto.
+- Seguridad: XSS en listados neutralizado (`data-*`/`@js`/`textContent`), escalada en empleados bloqueada, `throttle` en cobro/acceso, el escaneo QR ya no expone datos del socio, ticket armado desde el `Payment` guardado.
+- Permisos por empleado (override del rol): permisos directos + denegados (`denied_permissions`), ver regla 20.
 
-- **Doble/triple conteo de ingresos**: `MemberController::store` crea un `Sale` **y** un `Payment` por el mismo plan, y además `CashRegisterController` y `ReportController` suman el precio del plan de los socios creados en el periodo. `renovarMensualidad` también crea `Sale` + `Payment`.
-- **Dashboard – caja en vivo**: usa `$cajaAbierta->initial_amount` (no existe; la columna es `opening_amount`) y filtra por `created_at` en lugar de `opened_at` / `cash_register_id`.
-- **POS**: no valida stock disponible (puede quedar negativo) y confía en el precio enviado por el cliente; `user_id` cae a `1` si no hay sesión.
-- **Renovaciones duplicadas**: existen `socios.renovar` (`renovarMensualidad`, modal) y `socios.renew` (`renew`); el modal calcula días por nombre de plan (`'Semestral'`) en vez de `duration_days`.
-- Tabla `memberships` sin uso.
-- `CheckActiveUser` en bypass; permisos Spatie solo aplicados a Empleados y Planes (el resto de módulos y Roles no tienen `permission:`).
-- Tailwind cargado dos veces (Vite + CDN).
-- Generación de folio susceptible a condiciones de carrera.
-- `ReportController::exportarPdf` solo devuelve "en construcción".
-- Sin tests propios del dominio.
+**Pendiente / a vigilar:**
+- Tabla `memberships` sin uso (la vigencia vive en `members.expiration_date`).
+- Folio (`MX-` + id + 9000) susceptible a condiciones de carrera con alta concurrencia.
+- `throttle` comparte cupo por usuario entre rutas (no es independiente por función); ver *named limiters* si se quiere afinar.
+- Autorización por módulo **sin ownership**: con el permiso del módulo, un empleado ve recursos de todos (p. ej. cortes de otros). Aceptable para una sucursal; decidir si filtrar por usuario.
+- Tailwind por CDN aún en `socios/ticket.blade.php` (vista de impresión).
+- Caja global única (no hay caja por usuario/turno).
+- Sin tests de features del dominio (solo tests de Breeze).
 
 ---
 
 ## 6. Próximos pasos
 
-1. **Exportar reporte financiero a PDF** (`reports/pdf.blade.php` existe; falta la implementación en `exportarPdf`).
-2. **Unificar el registro de ingresos** (una sola fuente: `Payment` para membresías, `Sale` para POS) y corregir los cálculos de caja, reportes y dashboard.
-3. Aplicar **permisos RBAC** a todos los módulos (socios, POS, caja, gastos, reportes, roles) y reactivar `CheckActiveUser`.
-4. **Validaciones del POS** en servidor: stock suficiente, precio desde BD, alertas por `min_stock`.
-5. Consolidar el flujo de **renovación** en una sola ruta usando `duration_days`.
-6. Decidir el uso de `memberships` (historial de periodos) o eliminarla.
-7. **Tests de features** para caja, POS, gastos y renovaciones.
-8. Cajas por usuario/turno (hoy es una caja global).
-9. Recordatorios automáticos de vencimiento a socios (email/WhatsApp).
+1. **Tests de features** del dominio (caja, POS, gastos, renovaciones, RBAC y denegaciones por empleado).
+2. **Decisiones de diseño**: usar o eliminar `memberships`; adoptar Livewire o documentar que Alpine cumple ese rol; *ownership* por usuario en ventas/cortes.
+3. **Named limiters** de `throttle` independientes por función (POS vs escáner).
+4. **Recordatorios automáticos** de vencimiento a socios (email/WhatsApp).
+5. **Cajas por usuario/turno** (hoy es una caja global).
+6. Endurecer la generación de **folio** ante concurrencia.
+7. **Despliegue** a producción (VPS Ubuntu + Nginx + MySQL): PHP 8.3, `php-gd`, `storage:link`, `.env` de producción (`APP_DEBUG=false`, DB MySQL, SMTP real), `optimize`.

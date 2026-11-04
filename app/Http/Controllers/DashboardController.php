@@ -27,10 +27,9 @@ class DashboardController extends Controller
         $dineroEnCaja = 0;
 
         if ($cajaAbierta) {
-            // Movimientos desde que se abrió el turno (opened_at); los gastos se ligan al turno por cash_register_id.
-            $desde = $cajaAbierta->opened_at;
-            $ventasCaja = Sale::where('created_at', '>=', $desde)->where('payment_method', 'Efectivo')->sum('total');
-            $membresiasCaja = Payment::where('created_at', '>=', $desde)->where('payment_method', 'Efectivo')->sum('amount') ?? 0;
+            // Movimientos del turno, ligados a la caja por cash_register_id (igual que los gastos).
+            $ventasCaja = Sale::where('cash_register_id', $cajaAbierta->id)->where('payment_method', 'Efectivo')->sum('total');
+            $membresiasCaja = Payment::where('cash_register_id', $cajaAbierta->id)->where('payment_method', 'Efectivo')->sum('amount') ?? 0;
             $gastosCaja = Expense::where('cash_register_id', $cajaAbierta->id)->where('payment_method', 'Efectivo')->sum('amount') ?? 0;
             // Dinero en caja = fondo inicial + ingresos en efectivo del turno - gastos en efectivo del turno.
             $dineroEnCaja = ($cajaAbierta->opening_amount ?? 0) + $ventasCaja + $membresiasCaja - $gastosCaja;

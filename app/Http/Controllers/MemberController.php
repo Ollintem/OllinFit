@@ -133,12 +133,17 @@ class MemberController extends Controller
         $folioPago = 'TXN-' . strtoupper(uniqid());
         $pago = \App\Models\Payment::create([
             'member_id' => $socio->id,
-            'plan_id' => $plan->id,
+            'cash_register_id' => \App\Models\CashRegister::abierta(auth()->id())?->id,
             'plan_name' => $plan->name,
             'folio_pago' => $folioPago,
             'amount' => $plan->price,
             'payment_method' => ucfirst($request->payment_method),
         ]);
+
+        // Bienvenida por correo y/o WhatsApp (en segundo plano; no bloquea ni afecta el alta).
+        if (config('services.whatsapp.enabled') || $socio->email) {
+            \App\Jobs\EnviarBienvenidaSocio::dispatch($socio->id);
+        }
 
         // Ticket de membresía: se referencia por el id del pago guardado (se arma desde la BD).
         $ticketUrl = route('socios.ticket', [$socio->id, $pago->id]);
@@ -385,7 +390,7 @@ class MemberController extends Controller
             $folioPago = 'TXN-' . strtoupper(uniqid());
             $pago = \App\Models\Payment::create([
                 'member_id' => $socio->id,
-                'plan_id' => $socio->plan->id,
+                'cash_register_id' => \App\Models\CashRegister::abierta(auth()->id())?->id,
                 'plan_name' => $socio->plan->name,
                 'folio_pago' => $folioPago,
                 'amount' => $precio,

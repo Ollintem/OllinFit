@@ -14,6 +14,7 @@
         <!-- Nota: enctype="multipart/form-data" es OBLIGATORIO para subir imágenes -->
         <form action="{{ route('empleados.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
+            <x-form-errors />
 
             <!-- SECCIÓN 1: Información del Empleado -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">

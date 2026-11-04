@@ -22,19 +22,57 @@ class ReportController extends Controller
                 ->with('error', 'Solo un administrador puede consultar reportes de días anteriores.');
         }
 
+        $datos = $this->construirReporte($fechaSeleccionada);
+
+        return view('reports.index', array_merge($datos, [
+            'fechaSeleccionada' => $fechaSeleccionada,
+            'imprimir' => false,
+        ]));
+    }
+
+    public function exportarPdf(Request $request)
+    {
+        $hoy = date('Y-m-d');
+        $fechaSeleccionada = $request->input('fecha', $hoy);
+
+        // Misma restricción que el reporte: días anteriores solo con permiso.
+        if ($fechaSeleccionada !== $hoy && ! $request->user()->can('ver_reportes_historicos')) {
+            return redirect()->route('reports.index')
+                ->with('error', 'Solo un administrador puede consultar reportes de días anteriores.');
+        }
+
+        $datos = $this->construirReporte($fechaSeleccionada);
+
+        // La vista reports.pdf es una página lista para impresión (dispara window.print()).
+        // Así el usuario la guarda como PDF desde el navegador, sin dependencias extra.
+        return view('reports.pdf', [
+            'fechaSeleccionada' => $fechaSeleccionada,
+            'transacciones'     => $datos['transacciones'],
+            'totalIngresos'     => $datos['totalIngresos'],
+            'efectivo'          => $datos['efectivoIngresos'],
+            'tarjeta'           => $datos['tarjetaIngresos'],
+        ]);
+    }
+
+    /**
+     * Calcula los datos financieros de un día (ingresos, egresos, balance y
+     * renovaciones por vencer). Lo comparten el reporte en pantalla y el PDF
+     * para que siempre muestren exactamente lo mismo.
+     */
+    private function construirReporte(string $fechaSeleccionada): array
+    {
         // ==========================================
         // 1. INGRESOS (Entradas de dinero)
         // ==========================================
-        
-        $ventasPos = Sale::whereDate('created_at', $fechaSeleccionada)->get()->map(function($item) {
+        $ventasPos = Sale::whereDate('created_at', $fechaSeleccionada)->get()->map(function ($item) {
             $item->origen = 'Punto de Venta';
             $item->monto = $item->total;
             $item->payment_method = $item->payment_method ?? 'Efectivo';
             $item->concepto_id = 'Ticket #' . $item->id;
             return $item;
         });
-        
-        $pagosMembresias = Payment::whereDate('created_at', $fechaSeleccionada)->get()->map(function($item) {
+
+        $pagosMembresias = Payment::whereDate('created_at', $fechaSeleccionada)->get()->map(function ($item) {
             $item->origen = 'Membresía / Plan';
             $item->monto = $item->amount ?? $item->total ?? 0;
             $item->payment_method = $item->payment_method ?? 'Efectivo';
@@ -54,7 +92,7 @@ class ReportController extends Controller
         // ==========================================
         $egresos = Expense::with(['supplier'])->whereDate('created_at', $fechaSeleccionada)->latest()->get();
         $totalEgresos = $egresos->sum('amount');
-        
+
         // ==========================================
         // 3. BALANCE NETO Y EXTRAS
         // ==========================================
@@ -66,34 +104,15 @@ class ReportController extends Controller
             ->where('is_active', true)
             ->count();
 
-        $imprimir = false;
-
-        return view('reports.index', compact(
-            'transacciones', 
+        return compact(
+            'transacciones',
             'egresos',
-            'totalIngresos', 
+            'totalIngresos',
             'totalEgresos',
             'balanceNeto',
-            'efectivoIngresos', 
-            'tarjetaIngresos', 
-            'fechaSeleccionada', 
-            'renovacionesPendientesCount',
-            'imprimir'
-        ));
-    }
-
-    public function exportarPdf(Request $request)
-    {
-        $hoy = date('Y-m-d');
-        $fechaSeleccionada = $request->input('fecha', $hoy);
-
-        // Misma restricción que el reporte: días anteriores solo con permiso.
-        if ($fechaSeleccionada !== $hoy && ! $request->user()->can('ver_reportes_historicos')) {
-            return redirect()->route('reports.index')
-                ->with('error', 'Solo un administrador puede consultar reportes de días anteriores.');
-        }
-
-        // (Dejaremos esta función básica por ahora hasta que maquetemos el PDF financiero)
-        return redirect()->back()->with('error', 'El formato PDF financiero está en construcción.');
+            'efectivoIngresos',
+            'tarjetaIngresos',
+            'renovacionesPendientesCount'
+        );
     }
 }

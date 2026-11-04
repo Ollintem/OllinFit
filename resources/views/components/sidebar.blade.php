@@ -147,19 +147,26 @@
         </a>
         @endcan
 
+        @role('Administrador')
+        <a href="{{ route('integraciones.index') }}" class="flex items-center gap-4 px-3 py-3 rounded-xl text-[13px] font-medium transition-all group {{ request()->routeIs('integraciones.*') ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-lg shadow-orange-500/20' : 'hover:bg-zinc-900 hover:text-white' }}">
+            <svg class="w-6 h-6 shrink-0 {{ request()->routeIs('integraciones.*') ? 'text-white' : 'text-zinc-500 group-hover:text-orange-500' }} transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <span x-show="hovered" x-transition.opacity.duration.200ms class="whitespace-nowrap">Integraciones</span>
+        </a>
+        @endrole
+
     </nav>
 
     <!-- Perfil y Cerrar Sesión -->
     <div class="p-4 border-t border-zinc-900 bg-zinc-950 flex items-center justify-between">
-        <div class="flex items-center gap-3 overflow-hidden">
+        <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 overflow-hidden rounded-lg hover:bg-zinc-900 transition-colors p-1 -m-1" title="Mi perfil">
             <div class="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 text-orange-500 font-bold flex items-center justify-center shrink-0">
                 {{ substr(Auth::user()->name ?? 'E', 0, 1) }}
             </div>
             <div x-show="hovered" x-transition.opacity.duration.200ms class="truncate whitespace-nowrap">
                 <p class="text-[13px] font-bold text-white truncate">{{ Auth::user()->name ?? 'Eduardo' }}</p>
-                <p class="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Admin Ollinfit</p>
+                <p class="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Mi perfil</p>
             </div>
-        </div>
+        </a>
 
         <form method="POST" action="{{ route('logout') }}" x-show="hovered" x-transition.opacity>
             @csrf

@@ -19,20 +19,21 @@ class CashRegisterController extends Controller
         $ultimoTurno = \App\Models\CashRegister::where('status', 'cerrada')->latest()->first();
 
         if ($cajaActiva) {
-            $desde = $cajaActiva->opened_at;
+            // Los ingresos se filtran por la CAJA (no por ventana de tiempo): corte exacto por turno.
+            $caja = $cajaActiva->id;
 
             // 1. Calcular Ingresos en EFECTIVO
-            $ventasEfectivo = \App\Models\Sale::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde);
-            $pagosMembresiasEfectivo = \App\Models\Payment::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde);
+            $ventasEfectivo = \App\Models\Sale::where('payment_method', 'Efectivo')->where('cash_register_id', $caja);
+            $pagosMembresiasEfectivo = \App\Models\Payment::where('payment_method', 'Efectivo')->where('cash_register_id', $caja);
 
             // Ingreso en efectivo = ventas del POS + pagos de membresías. Cada ingreso se cuenta una sola vez.
             $ingresosEfectivoTurno = $ventasEfectivo->sum('total') + $pagosMembresiasEfectivo->sum('amount');
 
             // 2. Variables de la Vista (Conteos y Tarjetas)
-            $ventasTurnoCount = \App\Models\Sale::where('created_at', '>=', $desde)->count() + \App\Models\Payment::where('created_at', '>=', $desde)->count();
-            
-            $ventasTarjeta = \App\Models\Sale::where('payment_method', '!=', 'Efectivo')->where('created_at', '>=', $desde)->sum('total');
-            $pagosTarjeta = \App\Models\Payment::where('payment_method', '!=', 'Efectivo')->where('created_at', '>=', $desde)->sum('amount');
+            $ventasTurnoCount = \App\Models\Sale::where('cash_register_id', $caja)->count() + \App\Models\Payment::where('cash_register_id', $caja)->count();
+
+            $ventasTarjeta = \App\Models\Sale::where('payment_method', '!=', 'Efectivo')->where('cash_register_id', $caja)->sum('total');
+            $pagosTarjeta = \App\Models\Payment::where('payment_method', '!=', 'Efectivo')->where('cash_register_id', $caja)->sum('amount');
             $ingresosTarjetaTurno = $ventasTarjeta + $pagosTarjeta;
 
             // 3. EGRESOS Y GASTOS 
@@ -47,7 +48,7 @@ class CashRegisterController extends Controller
             $expectedAmount = ($cajaActiva->opening_amount + $ingresosEfectivoTurno) - $egresosEfectivo;
 
             // 5. RESTAURAR EL DETALLE DE TRANSACCIONES (Para la tabla de ingresos)
-            $ventas = \App\Models\Sale::where('created_at', '>=', $desde)->get()->map(function($sale) {
+            $ventas = \App\Models\Sale::where('cash_register_id', $caja)->get()->map(function($sale) {
                 return (object) [
                     'created_at' => $sale->created_at,
                     'concepto_id' => 'Venta de Productos / POS',
@@ -56,7 +57,7 @@ class CashRegisterController extends Controller
                 ];
             });
 
-            $pagos = \App\Models\Payment::where('created_at', '>=', $desde)->get()->map(function($pago) {
+            $pagos = \App\Models\Payment::where('cash_register_id', $caja)->get()->map(function($pago) {
                 return (object) [
                     'created_at' => $pago->created_at,
                     'concepto_id' => 'Pago de Membresía',
@@ -116,10 +117,14 @@ class CashRegisterController extends Controller
             return back()->with('error', 'No hay ninguna caja abierta para cerrar.');
         }
 
-        // Calcular ingresos en efectivo acumulados durante el turno
-        $desde = $cajaActiva->opened_at;
-        $ventasPos = Sale::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde)->sum('total');
-        $pagosMembresias = Payment::where('payment_method', 'Efectivo')->where('created_at', '>=', $desde)->sum('amount');
+        // Solo el cajero que abrió el turno (o un Administrador) puede cerrarlo.
+        if ($cajaActiva->user_id !== Auth::id() && ! $request->user()->hasRole('Administrador')) {
+            return back()->with('error', 'Solo el cajero que abrió el turno o un administrador puede cerrarlo.');
+        }
+
+        // Calcular ingresos en efectivo del turno, ligados a ESTA caja.
+        $ventasPos = Sale::where('payment_method', 'Efectivo')->where('cash_register_id', $cajaActiva->id)->sum('total');
+        $pagosMembresias = Payment::where('payment_method', 'Efectivo')->where('cash_register_id', $cajaActiva->id)->sum('amount');
 
         // Ingreso en efectivo = ventas del POS + pagos de membresías. Sin triple conteo de socios nuevos.
         $ingresosEfectivoTurno = $ventasPos + $pagosMembresias;
@@ -147,8 +152,8 @@ class CashRegisterController extends Controller
     }
     public function historial()
 {
-    // Obtener todas las cajas cerradas paginadas o en lista para auditoría
-    $historialCajas = CashRegister::where('status', 'cerrada')->latest()->paginate(10);
+    // Obtener todas las cajas cerradas paginadas o en lista para auditoría (con su cajero)
+    $historialCajas = CashRegister::with('user')->where('status', 'cerrada')->latest()->paginate(10);
     return view('caja.historial', compact('historialCajas'));
 }
 }

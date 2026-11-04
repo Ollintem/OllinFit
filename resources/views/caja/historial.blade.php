@@ -21,6 +21,7 @@
                     <thead>
                         <tr class="text-gray-400 border-b border-gray-100 pb-2">
                             <th class="pb-3 font-bold">Cierre / Fecha</th>
+                            <th class="pb-3 font-bold">Cajero</th>
                             <th class="pb-3 font-bold">Fondo Inicial</th>
                             <th class="pb-3 font-bold">Esperado Sistema</th>
                             <th class="pb-3 font-bold">Efectivo Contado</th>
@@ -34,6 +35,7 @@
                                 <td class="py-3.5 font-bold text-gray-800">
                                     {{ \Carbon\Carbon::parse($caja->closed_at)->format('d/m/Y h:i A') }}
                                 </td>
+                                <td class="py-3.5 text-gray-600">{{ $caja->user->name ?? '—' }} {{ $caja->user->last_name ?? '' }}</td>
                                 <td class="py-3.5 text-gray-600">${{ number_format($caja->opening_amount, 2) }}</td>
                                 <td class="py-3.5 text-gray-600">${{ number_format($caja->expected_amount, 2) }}</td>
                                 <td class="py-3.5 font-bold text-emerald-600">${{ number_format($caja->closing_amount, 2) }}</td>
@@ -48,7 +50,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center py-12 text-gray-400">No hay cortes de caja registrados en el historial.</td>
+                                <td colspan="7" class="text-center py-12 text-gray-400">No hay cortes de caja registrados en el historial.</td>
                             </tr>
                         @endforelse
                     </tbody>

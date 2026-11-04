@@ -76,6 +76,7 @@
 
                 <form action="{{ route('gastos.store') }}" method="POST" class="space-y-6">
                     @csrf
+            <x-form-errors />
                     <!-- Inputs ocultos dinámicos -->
                     <input type="hidden" name="type" x-model="tab">
                     

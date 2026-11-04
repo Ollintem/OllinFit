@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    // Microservicio no oficial de WhatsApp (carpeta whatsapp-service/).
+    // El QR se genera del lado Node; aquí solo configuramos la conexión.
+    'whatsapp' => [
+        'enabled' => env('WHATSAPP_ENABLED', false),
+        'url' => env('WHATSAPP_API_URL', 'http://127.0.0.1:3000'),
+        'token' => env('WHATSAPP_API_TOKEN'),
+        'country_code' => env('WHATSAPP_COUNTRY_CODE', '52'),
+    ],
+
 ];

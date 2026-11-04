@@ -24,6 +24,21 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Dashboard principal con métricas dinámicas
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:ver_dashboard')->name('dashboard');
 
+    // Perfil del usuario: cada quien edita el suyo (sin permiso de módulo)
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Integraciones (correo, WhatsApp): solo Administrador
+    Route::middleware('role:Administrador')->group(function () {
+        Route::get('/integraciones', [\App\Http\Controllers\IntegracionesController::class, 'index'])->name('integraciones.index');
+        Route::put('/integraciones/correo', [\App\Http\Controllers\IntegracionesController::class, 'guardarCorreo'])->name('integraciones.correo');
+        Route::post('/integraciones/correo/prueba', [\App\Http\Controllers\IntegracionesController::class, 'probarCorreo'])->name('integraciones.correo.prueba');
+        Route::get('/integraciones/whatsapp/estado', [\App\Http\Controllers\IntegracionesController::class, 'estadoWhatsapp'])->name('integraciones.whatsapp.estado');
+        Route::put('/integraciones/whatsapp', [\App\Http\Controllers\IntegracionesController::class, 'guardarWhatsapp'])->name('integraciones.whatsapp');
+        Route::post('/integraciones/whatsapp/desvincular', [\App\Http\Controllers\IntegracionesController::class, 'desvincularWhatsapp'])->name('integraciones.whatsapp.desvincular');
+    });
+
     // MÓDULOS CON PROTECCIÓN GRANULAR (RBAC)
     // =========================================================
 
