@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 
 class IntegracionesController extends Controller
@@ -20,7 +21,72 @@ class IntegracionesController extends Controller
             'password_set' => (bool) Setting::get('mail_password'),
         ];
 
-        return view('integraciones.index', compact('correo'));
+        $whatsapp = [
+            'enabled' => (bool) config('services.whatsapp.enabled'),
+            'url' => Setting::get('whatsapp_url', config('services.whatsapp.url')),
+            'country_code' => Setting::get('whatsapp_country_code', config('services.whatsapp.country_code')),
+            'token_set' => (bool) Setting::get('whatsapp_token'),
+        ];
+
+        return view('integraciones.index', compact('correo', 'whatsapp'));
+    }
+
+    /** Estado + QR del microservicio (lo consulta el panel cada pocos segundos). */
+    public function estadoWhatsapp()
+    {
+        try {
+            $resp = Http::withToken((string) config('services.whatsapp.token'))
+                ->timeout(8)
+                ->acceptJson()
+                ->get(rtrim((string) config('services.whatsapp.url'), '/') . '/qr');
+
+            if ($resp->failed()) {
+                return response()->json(['reachable' => true, 'connected' => false, 'qr' => null]);
+            }
+
+            $data = $resp->json();
+            return response()->json([
+                'reachable' => true,
+                'connected' => (bool) ($data['connected'] ?? false),
+                'qr' => $data['qr'] ?? null,
+            ]);
+        } catch (\Throwable $e) {
+            // El microservicio no responde (apagado / no arrancado).
+            return response()->json(['reachable' => false, 'connected' => false, 'qr' => null]);
+        }
+    }
+
+    public function guardarWhatsapp(Request $request)
+    {
+        $datos = $request->validate([
+            'whatsapp_enabled' => 'nullable|boolean',
+            'whatsapp_url' => 'required|url',
+            'whatsapp_token' => 'nullable|string|max:255',
+            'whatsapp_country_code' => 'required|string|max:5',
+        ]);
+
+        Setting::put('whatsapp_enabled', $request->boolean('whatsapp_enabled') ? '1' : '0');
+        Setting::put('whatsapp_url', $datos['whatsapp_url']);
+        Setting::put('whatsapp_country_code', $datos['whatsapp_country_code']);
+
+        if ($request->filled('whatsapp_token')) {
+            Setting::put('whatsapp_token', $datos['whatsapp_token'], true);
+        }
+
+        return redirect()->route('integraciones.index')->with('success', 'Configuración de WhatsApp guardada.');
+    }
+
+    public function desvincularWhatsapp()
+    {
+        try {
+            Http::withToken((string) config('services.whatsapp.token'))
+                ->timeout(8)
+                ->post(rtrim((string) config('services.whatsapp.url'), '/') . '/unlink');
+
+            return redirect()->route('integraciones.index')->with('success', 'WhatsApp desvinculado. Vuelve a escanear el QR para reconectar.');
+        } catch (\Throwable $e) {
+            return redirect()->route('integraciones.index')->with('error', 'No se pudo desvincular: ' . $e->getMessage());
+        }
     }
 
     public function guardarCorreo(Request $request)

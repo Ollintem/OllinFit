@@ -25,6 +25,7 @@ const API_TOKEN = process.env.API_TOKEN || '';
 
 let sock = null;
 let conectado = false;
+let currentQr = null; // último QR de vinculación pendiente (para mostrarlo en el panel web)
 
 async function iniciarWhatsapp() {
   // La sesión se guarda en ./auth: al reiniciar NO vuelve a pedir el QR.
@@ -42,14 +43,16 @@ async function iniciarWhatsapp() {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
+      currentQr = qr; // disponible también para el panel web vía /qr
       console.log('\n================ VINCULA TU WHATSAPP ================');
       console.log('Abre WhatsApp > Dispositivos vinculados > Vincular un dispositivo');
-      console.log('y escanea este código QR:\n');
+      console.log('y escanea este código QR (o hazlo desde el panel de Integraciones):\n');
       qrcodeTerminal.generate(qr, { small: true });
     }
 
     if (connection === 'open') {
       conectado = true;
+      currentQr = null; // ya no hace falta el QR
       console.log('\n✅ WhatsApp conectado. El servicio está listo para enviar mensajes.');
     }
 
@@ -81,6 +84,37 @@ app.use((req, res, next) => {
 
 app.get('/status', (req, res) => {
   res.json({ connected: conectado });
+});
+
+// Estado + QR de vinculación (para el panel web). Si está conectado, qr = null;
+// si no, devuelve el QR actual como imagen data-URL lista para <img src="...">.
+app.get('/qr', async (req, res) => {
+  if (conectado) {
+    return res.json({ connected: true, qr: null });
+  }
+  if (!currentQr) {
+    return res.json({ connected: false, qr: null }); // aún no hay QR disponible
+  }
+  try {
+    const dataUrl = await QRCode.toDataURL(currentQr, { width: 300, margin: 1 });
+    res.json({ connected: false, qr: dataUrl });
+  } catch (e) {
+    res.status(500).json({ error: 'No se pudo generar el QR.' });
+  }
+});
+
+// Desvincular el número (cierra la sesión de WhatsApp).
+app.post('/unlink', async (req, res) => {
+  try {
+    if (sock) {
+      await sock.logout();
+    }
+    conectado = false;
+    currentQr = null;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'No se pudo desvincular.' });
+  }
 });
 
 app.post('/send', async (req, res) => {

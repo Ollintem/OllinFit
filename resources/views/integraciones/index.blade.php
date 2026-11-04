@@ -100,10 +100,88 @@
             <p class="text-[12px] text-gray-400 mt-2">Guarda primero la configuración y luego envía la prueba para verificar que el correo funciona.</p>
         </div>
 
-        <!-- ================= WHATSAPP (Etapa 2) ================= -->
-        <div class="bg-white rounded-xl shadow-sm border border-dashed border-gray-300 p-8 text-center text-gray-400">
-            <p class="text-sm font-semibold">WhatsApp</p>
-            <p class="text-[13px]">La vinculación por QR desde esta pantalla se habilita en la siguiente etapa.</p>
+        <!-- ================= WHATSAPP ================= -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div class="flex items-center gap-2 mb-1">
+                <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 3v-3z"></path></svg>
+                <h2 class="text-base font-bold text-gray-800">WhatsApp</h2>
+            </div>
+            <p class="text-[13px] text-gray-500 mb-6">Vincula el número del gimnasio escaneando el código con el teléfono. El envío usa un microservicio que debe estar corriendo en el servidor.</p>
+
+            <!-- Estado + QR en vivo -->
+            <div class="rounded-xl border border-gray-100 bg-gray-50/60 p-6 mb-6 text-center"
+                 x-data="{ reachable:true, connected:false, qr:null, cargando:true,
+                    async poll(){ try { const r = await fetch('{{ route('integraciones.whatsapp.estado') }}', {headers:{'Accept':'application/json'}}); const d = await r.json(); this.reachable=d.reachable; this.connected=d.connected; this.qr=d.qr; } catch(e){ this.reachable=false; } this.cargando=false; } }"
+                 x-init="poll(); setInterval(() => poll(), 4000)">
+
+                <template x-if="cargando">
+                    <p class="text-sm text-gray-400">Consultando estado…</p>
+                </template>
+
+                <template x-if="!cargando && !reachable">
+                    <div class="text-amber-700">
+                        <p class="text-sm font-bold">⚠️ El microservicio no responde</p>
+                        <p class="text-[13px] mt-1">Arráncalo en el servidor (<span class="font-mono">cd whatsapp-service &amp;&amp; npm start</span>) y revisa la URL de abajo.</p>
+                    </div>
+                </template>
+
+                <template x-if="!cargando && reachable && connected">
+                    <div class="text-emerald-600">
+                        <svg class="w-10 h-10 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <p class="text-sm font-bold">WhatsApp vinculado y listo</p>
+                        <form action="{{ route('integraciones.whatsapp.desvincular') }}" method="POST" class="mt-3"
+                              onsubmit="return confirm('¿Desvincular el WhatsApp? Tendrás que volver a escanear el QR.')">
+                            @csrf
+                            <button type="submit" class="text-xs font-bold text-red-500 hover:text-red-600 border border-red-200 rounded-lg px-3 py-1.5">Desvincular</button>
+                        </form>
+                    </div>
+                </template>
+
+                <template x-if="!cargando && reachable && !connected && qr">
+                    <div>
+                        <p class="text-sm font-bold text-gray-700 mb-3">Escanea este código</p>
+                        <img :src="qr" alt="QR de WhatsApp" class="mx-auto w-56 h-56 rounded-lg border border-gray-200 bg-white p-2">
+                        <p class="text-[13px] text-gray-500 mt-3">En el teléfono: WhatsApp → <span class="font-semibold">Dispositivos vinculados</span> → Vincular un dispositivo.</p>
+                    </div>
+                </template>
+
+                <template x-if="!cargando && reachable && !connected && !qr">
+                    <p class="text-sm text-gray-500">Esperando el código QR del microservicio… (si no aparece en unos segundos, reinícialo).</p>
+                </template>
+            </div>
+
+            <!-- Ajustes del microservicio -->
+            <form action="{{ route('integraciones.whatsapp') }}" method="POST" class="space-y-5">
+                @csrf
+                @method('PUT')
+
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="hidden" name="whatsapp_enabled" value="0">
+                    <input type="checkbox" name="whatsapp_enabled" value="1" class="rounded border-gray-300 text-emerald-500 focus:ring-emerald-500" {{ $whatsapp['enabled'] ? 'checked' : '' }}>
+                    <span class="text-sm font-medium text-gray-700">Enviar avisos por WhatsApp (bienvenida y recordatorios)</span>
+                </label>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">URL del microservicio</label>
+                        <input type="url" name="whatsapp_url" value="{{ old('whatsapp_url', $whatsapp['url']) }}" class="w-full border-gray-200 rounded-lg text-sm" placeholder="http://127.0.0.1:3000" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Lada del país</label>
+                        <input type="text" name="whatsapp_country_code" value="{{ old('whatsapp_country_code', $whatsapp['country_code']) }}" class="w-full border-gray-200 rounded-lg text-sm" placeholder="52" required>
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Token del microservicio</label>
+                        <input type="password" name="whatsapp_token" class="w-full border-gray-200 rounded-lg text-sm" placeholder="{{ $whatsapp['token_set'] ? '•••••• (guardado; deja en blanco para conservar)' : 'mismo token del servicio (API_TOKEN)' }}">
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm">
+                        Guardar WhatsApp
+                    </button>
+                </div>
+            </form>
         </div>
 
     </div>
