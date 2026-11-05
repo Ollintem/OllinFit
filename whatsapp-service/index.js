@@ -14,6 +14,7 @@ const express = require('express');
 const QRCode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
 const pino = require('pino');
+const fs = require('fs');
 const {
   default: makeWASocket,
   useMultiFileAuthState,
@@ -22,6 +23,16 @@ const {
 
 const PORT = process.env.PORT || 3000;
 const API_TOKEN = process.env.API_TOKEN || '';
+const AUTH_DIR = 'auth'; // carpeta con las credenciales de la sesión vinculada
+
+// Borra las credenciales guardadas (al cerrar sesión) para poder vincular de cero.
+function limpiarCredenciales() {
+  try {
+    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+  } catch (e) {
+    console.error('No se pudo borrar la carpeta de credenciales:', e?.message || e);
+  }
+}
 
 let sock = null;
 let conectado = false;
@@ -29,7 +40,7 @@ let currentQr = null; // último QR de vinculación pendiente (para mostrarlo en
 
 async function iniciarWhatsapp() {
   // La sesión se guarda en ./auth: al reiniciar NO vuelve a pedir el QR.
-  const { state, saveCreds } = await useMultiFileAuthState('auth');
+  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
   sock = makeWASocket({
     auth: state,
@@ -58,12 +69,22 @@ async function iniciarWhatsapp() {
 
     if (connection === 'close') {
       conectado = false;
+      currentQr = null;
       const code = lastDisconnect?.error?.output?.statusCode;
       const cerroSesion = code === DisconnectReason.loggedOut;
-      console.log(`⚠️  Conexión cerrada (code ${code}).` + (cerroSesion ? ' Sesión cerrada: borra la carpeta auth y vuelve a vincular.' : ' Reconectando...'));
-      if (!cerroSesion) {
-        iniciarWhatsapp();
+
+      if (cerroSesion) {
+        // Sesión cerrada (desvinculada): limpiamos las credenciales viejas y
+        // reiniciamos para generar un QR nuevo automáticamente, sin tocar nada.
+        console.log('⚠️  Sesión cerrada. Limpiando credenciales y generando un QR nuevo...');
+        limpiarCredenciales();
+      } else {
+        console.log(`⚠️  Conexión cerrada (code ${code}). Reconectando...`);
       }
+
+      // En ambos casos reiniciamos: reconecta, o arranca limpio pidiendo QR.
+      // Pequeña espera para evitar reintentos en bucle cerrado.
+      setTimeout(iniciarWhatsapp, 1500);
     }
   });
 }
