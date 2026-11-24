@@ -211,6 +211,49 @@ class MemberController extends Controller
 
         return view('socios.ticket', compact('member', 'data', 'fecha'));
     }
+
+    /**
+     * Gafete digital imprimible: credencial con foto, folio y QR de acceso.
+     * Se abre en una pestaña aparte y se manda a imprimir.
+     */
+    public function gafete(\App\Models\Member $member)
+    {
+        $member->loadMissing('plan');
+        return view('socios.gafete', compact('member'));
+    }
+
+    /**
+     * Envía el gafete (QR de acceso) al WhatsApp del socio.
+     */
+    public function enviarGafeteWhatsapp(\App\Models\Member $member, \App\Services\WhatsappSender $whatsapp)
+    {
+        if (! $whatsapp->habilitado()) {
+            return back()->with('error', 'WhatsApp no está activo. Actívalo en Integraciones y vincula el teléfono del gimnasio.');
+        }
+
+        if (! $member->phone) {
+            return back()->with('error', 'Este socio no tiene teléfono registrado para enviarle el gafete.');
+        }
+
+        $member->loadMissing('plan');
+        $plan = $member->plan->name ?? 'tu membresía';
+        $vigencia = $member->expiration_date?->format('d/m/Y');
+
+        $mensaje = "¡Hola {$member->name}! 👋 Aquí tienes tu *gafete digital* de *OllinFit*.\n\n"
+            . "Membresía: *{$plan}*"
+            . ($vigencia ? " (vigente hasta el {$vigencia})" : '') . ".\n"
+            . "Folio: *{$member->folio}*.\n\n"
+            . "Muestra este código QR en recepción para registrar tu entrada. 💪";
+
+        $ok = $whatsapp->enviarConQr($member->phone, $mensaje, $member->folio);
+
+        if ($ok) {
+            return back()->with('success', 'Gafete enviado por WhatsApp a ' . $member->phone . '.');
+        }
+
+        return back()->with('error', 'No se pudo enviar por WhatsApp. Verifica que esté vinculado (código escaneado) y que el número tenga WhatsApp.');
+    }
+
     // Vista completa del historial de pagos
     public function payments(\App\Models\Member $member)
     {

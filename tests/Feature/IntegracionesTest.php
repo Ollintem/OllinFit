@@ -51,18 +51,19 @@ class IntegracionesTest extends TestCase
 
     public function test_guardar_correo_persiste_los_ajustes(): void
     {
+        // El usuario solo escribe su correo y la App Password; lo técnico lo fija el sistema.
         $this->actingAs($this->admin())->put(route('integraciones.correo'), [
-            'mail_host' => 'smtp.gmail.com',
-            'mail_port' => 465,
-            'mail_scheme' => 'smtps',
-            'mail_username' => 'gym@gmail.com',
-            'mail_password' => 'abcd efgh ijkl mnop', // con espacios a propósito
             'mail_from_address' => 'gym@gmail.com',
-            'mail_from_name' => 'OllinFit',
+            'mail_password' => 'abcd efgh ijkl mnop', // con espacios a propósito
         ])->assertRedirect(route('integraciones.index'))->assertSessionHas('success');
 
+        // La config de Gmail se fija automáticamente.
         $this->assertSame('smtp.gmail.com', Setting::get('mail_host'));
         $this->assertSame('465', Setting::get('mail_port'));
+        $this->assertSame('smtps', Setting::get('mail_scheme'));
+        // El usuario y el "de" quedan igual que el correo capturado.
+        $this->assertSame('gym@gmail.com', Setting::get('mail_username'));
+        $this->assertSame('gym@gmail.com', Setting::get('mail_from_address'));
         // La App Password se guarda SIN espacios.
         $this->assertSame('abcdefghijklmnop', Setting::get('mail_password'));
     }
@@ -76,20 +77,39 @@ class IntegracionesTest extends TestCase
         ])->assertRedirect(route('integraciones.index'))->assertSessionHas('success');
     }
 
-    public function test_guardar_whatsapp_persiste_los_ajustes(): void
+    public function test_activar_whatsapp_habilita_y_pone_defaults(): void
     {
-        $this->actingAs($this->admin())->put(route('integraciones.whatsapp'), [
-            'whatsapp_enabled' => '1',
-            'whatsapp_url' => 'http://127.0.0.1:3000',
-            'whatsapp_token' => 'mi-token',
-            'whatsapp_country_code' => '52',
-        ])->assertRedirect(route('integraciones.index'))->assertSessionHas('success');
+        // "Conectar WhatsApp" habilita el envío y deja la config técnica por defecto.
+        $this->actingAs($this->admin())->put(route('integraciones.whatsapp'))
+            ->assertRedirect(route('integraciones.index'))->assertSessionHas('success');
 
         $this->assertSame('1', Setting::get('whatsapp_enabled'));
-        $this->assertSame('http://127.0.0.1:3000', Setting::get('whatsapp_url'));
-        $this->assertSame('mi-token', Setting::get('whatsapp_token'));
-        // El token se guarda cifrado.
-        $this->assertNotSame('mi-token', Setting::where('key', 'whatsapp_token')->first()->value);
+        $this->assertNotNull(Setting::get('whatsapp_url'));
+        $this->assertNotNull(Setting::get('whatsapp_country_code'));
+    }
+
+    public function test_probar_whatsapp_requiere_estar_activo(): void
+    {
+        config(['services.whatsapp.enabled' => false]);
+
+        $this->actingAs($this->admin())->post(route('integraciones.whatsapp.prueba'), [
+            'telefono_prueba' => '4491234567',
+        ])->assertRedirect(route('integraciones.index'))->assertSessionHas('error');
+    }
+
+    public function test_probar_whatsapp_envia_cuando_esta_activo(): void
+    {
+        config([
+            'services.whatsapp.enabled' => true,
+            'services.whatsapp.url' => 'http://ws.test',
+            'services.whatsapp.token' => 'secreto',
+            'services.whatsapp.country_code' => '52',
+        ]);
+        Http::fake(['ws.test/send' => Http::response(['ok' => true], 200)]);
+
+        $this->actingAs($this->admin())->post(route('integraciones.whatsapp.prueba'), [
+            'telefono_prueba' => '4491234567',
+        ])->assertRedirect(route('integraciones.index'))->assertSessionHas('success');
     }
 
     public function test_estado_whatsapp_proxea_el_microservicio(): void

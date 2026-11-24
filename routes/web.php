@@ -35,7 +35,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::put('/integraciones/correo', [\App\Http\Controllers\IntegracionesController::class, 'guardarCorreo'])->name('integraciones.correo');
         Route::post('/integraciones/correo/prueba', [\App\Http\Controllers\IntegracionesController::class, 'probarCorreo'])->name('integraciones.correo.prueba');
         Route::get('/integraciones/whatsapp/estado', [\App\Http\Controllers\IntegracionesController::class, 'estadoWhatsapp'])->name('integraciones.whatsapp.estado');
-        Route::put('/integraciones/whatsapp', [\App\Http\Controllers\IntegracionesController::class, 'guardarWhatsapp'])->name('integraciones.whatsapp');
+        Route::put('/integraciones/whatsapp', [\App\Http\Controllers\IntegracionesController::class, 'activarWhatsapp'])->name('integraciones.whatsapp');
+        Route::post('/integraciones/whatsapp/prueba', [\App\Http\Controllers\IntegracionesController::class, 'probarWhatsapp'])->name('integraciones.whatsapp.prueba');
         Route::post('/integraciones/whatsapp/desvincular', [\App\Http\Controllers\IntegracionesController::class, 'desvincularWhatsapp'])->name('integraciones.whatsapp.desvincular');
     });
 
@@ -140,6 +141,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('socios/{member}', [MemberController::class, 'update'])->name('socios.update')->middleware('permission:editar_socios');
     Route::delete('socios/{member}', [MemberController::class, 'destroy'])->name('socios.destroy')->middleware('permission:eliminar_socios');
     Route::get('socios/{member}/ticket/{payment}', [MemberController::class, 'ticket'])->name('socios.ticket')->middleware('permission:ver_socios');
+    Route::get('socios/{member}/gafete', [MemberController::class, 'gafete'])->name('socios.gafete')->middleware('permission:ver_socios');
+    Route::post('socios/{member}/enviar-gafete', [MemberController::class, 'enviarGafeteWhatsapp'])->name('socios.enviar-gafete')->middleware(['permission:ver_socios', 'throttle:20,1']);
     Route::get('socios/{member}/pagos', [MemberController::class, 'payments'])->name('socios.pagos')->middleware('permission:ver_socios');
     Route::get('socios/{member}/accesos', [MemberController::class, 'accesses'])->name('socios.accesos')->middleware('permission:ver_socios');
 
