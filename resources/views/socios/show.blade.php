@@ -11,6 +11,20 @@
             </div>
         </div>
 
+        {{-- Resultado del envío del gafete por WhatsApp --}}
+        @if (session('success'))
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl px-4 py-3 flex items-center gap-2">
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {{ session('success') }}
+            </div>
+        @endif
+        @if (session('error'))
+            <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 flex items-center gap-2">
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {{ session('error') }}
+            </div>
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             <!-- COLUMNA IZQUIERDA (Perfil y QR) -->
@@ -81,15 +95,24 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
-                        <button class="flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        <!-- Imprimir gafete: se imprime en la misma vista (iframe oculto), sin cambiar de pestaña -->
+                        <button type="button" id="btn-imprimir-gafete"
+                           class="flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                             Imprimir
                         </button>
-                        <button class="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                            Enviar
-                        </button>
+                        <!-- Enviar gafete por WhatsApp (abre un modal de confirmación en pantalla) -->
+                        <form id="form-enviar-gafete" action="{{ route('socios.enviar-gafete', $member->id) }}" method="POST" class="contents">
+                            @csrf
+                            <button type="button" id="btn-enviar-gafete" class="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 3v-3z"></path></svg>
+                                Enviar
+                            </button>
+                        </form>
                     </div>
+
+                    <!-- iframe oculto donde se carga e imprime el gafete sin salir del perfil -->
+                    <iframe id="frameGafete" title="Gafete" class="hidden" style="display:none; width:0; height:0; border:0;"></iframe>
                 </div>
             </div>
 
@@ -268,6 +291,77 @@
             
         </div>
     </div>
+    <!-- MODAL DE CONFIRMACIÓN: ENVIAR GAFETE POR WHATSAPP (en pantalla, no alert del navegador) -->
+    <div id="wa-modal" class="fixed inset-0 z-50 hidden bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div id="wa-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300 p-6 text-center">
+            <div class="w-14 h-14 mx-auto rounded-full bg-emerald-50 flex items-center justify-center mb-4">
+                <svg class="w-7 h-7 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 3v-3z"></path></svg>
+            </div>
+            <h3 class="text-lg font-bold text-gray-800">Enviar gafete por WhatsApp</h3>
+            @if($member->phone)
+                <p class="text-sm text-gray-500 mt-1.5">Se enviará el código QR de acceso al número <span class="font-bold text-gray-800">{{ $member->phone }}</span>.</p>
+            @else
+                <p class="text-sm text-red-500 mt-1.5">Este socio no tiene teléfono registrado.</p>
+            @endif
+            <div class="flex items-center justify-center gap-3 mt-6">
+                <button type="button" id="wa-cancel" class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-bold transition-colors text-sm">
+                    Cancelar
+                </button>
+                <button type="button" id="wa-confirm" class="px-5 py-2.5 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 font-bold shadow-sm transition-colors text-sm {{ $member->phone ? '' : 'opacity-50 cursor-not-allowed' }}" {{ $member->phone ? '' : 'disabled' }}>
+                    Sí, enviar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- Imprimir gafete en la misma vista (iframe oculto) ---
+            const btnImprimir = document.getElementById('btn-imprimir-gafete');
+            const frameGafete = document.getElementById('frameGafete');
+            if (btnImprimir && frameGafete) {
+                btnImprimir.addEventListener('click', function () {
+                    // Recargamos el gafete en el iframe cada vez (cache-buster) y luego imprimimos.
+                    frameGafete.src = '{{ route('socios.gafete', $member->id) }}?t=' + Date.now();
+                });
+                frameGafete.addEventListener('load', function () {
+                    if (!frameGafete.getAttribute('src')) return;
+                    // Pequeña espera para que carguen estilos (Tailwind CDN) y el QR.
+                    setTimeout(function () {
+                        frameGafete.contentWindow.focus();
+                        frameGafete.contentWindow.print();
+                    }, 400);
+                });
+            }
+
+            // --- Modal de confirmación para enviar por WhatsApp ---
+            const waModal = document.getElementById('wa-modal');
+            const waContent = document.getElementById('wa-modal-content');
+            const btnEnviar = document.getElementById('btn-enviar-gafete');
+            const waCancel = document.getElementById('wa-cancel');
+            const waConfirm = document.getElementById('wa-confirm');
+
+            function openWa() {
+                waModal.classList.remove('hidden');
+                setTimeout(() => { waModal.classList.remove('opacity-0'); waContent.classList.remove('scale-95'); }, 10);
+            }
+            function closeWa() {
+                waModal.classList.add('opacity-0');
+                waContent.classList.add('scale-95');
+                setTimeout(() => waModal.classList.add('hidden'), 300);
+            }
+
+            if (btnEnviar) btnEnviar.addEventListener('click', openWa);
+            if (waCancel) waCancel.addEventListener('click', closeWa);
+            if (waModal) waModal.addEventListener('click', (e) => { if (e.target === waModal) closeWa(); });
+            if (waConfirm) waConfirm.addEventListener('click', function () {
+                this.disabled = true;
+                this.textContent = 'Enviando…';
+                document.getElementById('form-enviar-gafete').submit();
+            });
+        });
+    </script>
+
     <!-- MODAL DE RENOVACIÓN -->
     <div id="renew-modal" class="fixed inset-0 z-50 hidden bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform duration-300" id="renew-modal-content">
