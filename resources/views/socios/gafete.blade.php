@@ -60,7 +60,7 @@
         <!-- QR -->
         <div class="px-6 py-6 text-center">
             <div class="inline-block p-3 border-2 border-dashed border-gray-200 rounded-xl bg-white">
-                {!! SimpleSoftwareIO\QrCode\Facades\QrCode::size(170)->margin(1)->generate($member->folio) !!}
+                {!! SimpleSoftwareIO\QrCode\Facades\QrCode::size(170)->margin(1)->generate($member->qr_token) !!}
             </div>
             <p class="text-[11px] text-gray-400 mt-3 px-2 leading-relaxed">Muestra este código en recepción para registrar tu entrada.</p>
         </div>

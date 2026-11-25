@@ -60,7 +60,7 @@ class WhatsappBienvenidaTest extends TestCase
         Http::assertSent(function ($request) use ($socio) {
             return str_ends_with($request->url(), '/send')
                 && $request['to'] === '524491234567'
-                && $request['qr'] === $socio->folio
+                && $request['qr'] === $socio->qr_token
                 && str_contains($request['message'], $socio->folio)
                 && $request->hasHeader('Authorization', 'Bearer secreto');
         });

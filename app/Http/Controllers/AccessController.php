@@ -19,9 +19,10 @@ class AccessController extends Controller
     // Procesar el escaneo del QR vía AJAX (Sin recargar página)
     public function scan(Request $request)
     {
-        $request->validate(['folio' => 'required|string']);
+        // El QR contiene un token aleatorio por socio (no el folio consecutivo).
+        $request->validate(['codigo' => 'required|string|max:64']);
 
-        $member = Member::where('folio', $request->folio)->first();
+        $member = Member::where('qr_token', $request->codigo)->first();
 
         if (!$member) {
             return response()->json(['success' => false, 'message' => 'Código no válido. Socio no encontrado.'], 404);

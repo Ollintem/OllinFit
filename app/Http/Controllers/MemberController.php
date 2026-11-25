@@ -58,15 +58,14 @@ class MemberController extends Controller
     // Mostrar formulario para crear socio
     public function create()
     {
-        // 1. Generar el próximo Folio (Ej. MX-9482)
-        $ultimoSocio = Member::latest('id')->first();
-        $siguienteId = $ultimoSocio ? $ultimoSocio->id + 1 : 1;
-        $folio = 'MX-' . str_pad($siguienteId + 9000, 4, '0', STR_PAD_LEFT); 
+        // El folio ya NO se precalcula aquí: se asigna al guardar, a partir del id
+        // real del socio, para evitar colisiones entre dos altas simultáneas.
+        $folio = 'Se asigna al guardar';
 
-        // 2. Traer solo los planes que están activos en el sistema
+        // Traer solo los planes que están activos en el sistema
         $planes = \App\Models\Plan::where('is_active', true)->get();
 
-        // 3. Fecha de hoy para mostrar en el form
+        // Fecha de hoy para mostrar en el form
         $fechaRegistro = now()->format('d/m/Y');
 
         return view('socios.create', compact('folio', 'fechaRegistro', 'planes'));
@@ -100,33 +99,37 @@ class MemberController extends Controller
             }
         }
 
-        // 2. Generar el Folio de forma segura en el backend
-        $ultimoSocio = \App\Models\Member::latest('id')->first();
-        $siguienteId = $ultimoSocio ? $ultimoSocio->id + 1 : 1;
-        $folio = 'MX-' . str_pad($siguienteId + 9000, 4, '0', STR_PAD_LEFT);
-
-        // 3. Calcular la fecha de vencimiento según la duración del plan (días/meses/años)
+        // 2. Calcular la fecha de vencimiento según la duración del plan (días/meses/años)
         $fechaVencimiento = $plan->extend(\Carbon\Carbon::today());
 
-        // 4. Guardar la fotografía si existe
+        // 3. Guardar la fotografía si existe
         $rutaImagen = null;
         if ($request->hasFile('photo')) {
             $nombreArchivo = uniqid('socio_') . '.webp';
             $rutaImagen = $request->file('photo')->storeAs('socios', $nombreArchivo, 'public');
         }
 
-        // 5. Guardar al Socio en la Base de Datos
-        $socio = \App\Models\Member::create([
-            'folio' => $folio,
-            'name' => $request->name,
-            'last_name' => $request->last_name,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'plan_id' => $plan->id,
-            'expiration_date' => $fechaVencimiento,
-            'profile_photo_path' => $rutaImagen,
-            'is_active' => true,
-        ]);
+        // 4. Guardar al socio. El folio se asigna DESPUÉS de insertar, a partir del id
+        //    real y dentro de una transacción, para que dos altas simultáneas nunca
+        //    generen el mismo folio (antes se calculaba desde el último id al abrir el form).
+        $socio = \Illuminate\Support\Facades\DB::transaction(function () use ($request, $plan, $fechaVencimiento, $rutaImagen) {
+            $socio = \App\Models\Member::create([
+                'folio' => 'TMP-' . \Illuminate\Support\Str::uuid(),
+                'name' => $request->name,
+                'last_name' => $request->last_name,
+                'phone' => $request->phone,
+                'email' => $request->email,
+                'plan_id' => $plan->id,
+                'expiration_date' => $fechaVencimiento,
+                'profile_photo_path' => $rutaImagen,
+                'is_active' => true,
+            ]);
+
+            $socio->folio = 'MX-' . str_pad($socio->id + 9000, 4, '0', STR_PAD_LEFT);
+            $socio->save();
+
+            return $socio;
+        });
 
         // 6. Registrar el pago de la membresía en 'payments' (única fuente del ingreso por membresías).
         // Nota: NO se crea una venta en 'sales'; esa tabla es solo para ventas del POS, para no duplicar el ingreso.
@@ -245,13 +248,24 @@ class MemberController extends Controller
             . "Folio: *{$member->folio}*.\n\n"
             . "Muestra este código QR en recepción para registrar tu entrada. 💪";
 
-        $ok = $whatsapp->enviarConQr($member->phone, $mensaje, $member->folio);
+        $ok = $whatsapp->enviarConQr($member->phone, $mensaje, $member->qr_token);
 
         if ($ok) {
             return back()->with('success', 'Gafete enviado por WhatsApp a ' . $member->phone . '.');
         }
 
         return back()->with('error', 'No se pudo enviar por WhatsApp. Verifica que esté vinculado (código escaneado) y que el número tenga WhatsApp.');
+    }
+
+    /**
+     * Regenera el token del QR del socio (invalida el gafete anterior).
+     * Útil si el socio pierde su gafete o se filtra su código.
+     */
+    public function regenerarQr(\App\Models\Member $member)
+    {
+        $member->regenerarQrToken();
+
+        return back()->with('success', 'Código QR regenerado. El gafete anterior ya no sirve; imprime o envía el nuevo.');
     }
 
     // Vista completa del historial de pagos

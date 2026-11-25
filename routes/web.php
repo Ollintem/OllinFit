@@ -143,6 +143,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('socios/{member}/ticket/{payment}', [MemberController::class, 'ticket'])->name('socios.ticket')->middleware('permission:ver_socios');
     Route::get('socios/{member}/gafete', [MemberController::class, 'gafete'])->name('socios.gafete')->middleware('permission:ver_socios');
     Route::post('socios/{member}/enviar-gafete', [MemberController::class, 'enviarGafeteWhatsapp'])->name('socios.enviar-gafete')->middleware(['permission:ver_socios', 'throttle:20,1']);
+    Route::post('socios/{member}/regenerar-qr', [MemberController::class, 'regenerarQr'])->name('socios.regenerar-qr')->middleware(['permission:editar_socios', 'throttle:20,1']);
     Route::get('socios/{member}/pagos', [MemberController::class, 'payments'])->name('socios.pagos')->middleware('permission:ver_socios');
     Route::get('socios/{member}/accesos', [MemberController::class, 'accesses'])->name('socios.accesos')->middleware('permission:ver_socios');
 
