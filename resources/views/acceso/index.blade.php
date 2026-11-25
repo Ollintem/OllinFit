@@ -97,7 +97,7 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}' // Token de seguridad de Laravel
                     },
-                    body: JSON.stringify({ folio: decodedText })
+                    body: JSON.stringify({ codigo: decodedText })
                 })
                 .then(response => response.json())
                 .then(data => {

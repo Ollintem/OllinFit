@@ -47,7 +47,7 @@ class EnviarBienvenidaSocio implements ShouldQueue
                 . "Tu folio es *{$socio->folio}*.\n\n"
                 . "Te compartimos tu código QR de acceso: muéstralo en recepción para entrar al gimnasio. 💪";
 
-            $whatsapp->enviarConQr($socio->phone, $mensaje, $socio->folio);
+            $whatsapp->enviarConQr($socio->phone, $mensaje, $socio->qr_token);
         }
     }
 }

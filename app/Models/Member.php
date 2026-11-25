@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
 class Member extends Model
 {
@@ -26,12 +27,33 @@ class Member extends Model
         'is_inside'
     ];
 
+    // El qr_token es secreto: no se asigna de forma masiva ni se expone en JSON.
+    protected $hidden = [
+        'qr_token',
+    ];
+
     // Convertimos la fecha de la base de datos a un objeto Carbon automáticamente
     protected $casts = [
         'expiration_date' => 'date',
         'reminder_sent_for' => 'date',
         'is_active' => 'boolean',
     ];
+
+    // Al crear un socio, se genera su token aleatorio para el QR de acceso.
+    protected static function booted(): void
+    {
+        static::creating(function (Member $member) {
+            if (empty($member->qr_token)) {
+                $member->qr_token = Str::random(40);
+            }
+        });
+    }
+
+    /** Genera un token nuevo (invalida el QR anterior). */
+    public function regenerarQrToken(): void
+    {
+        $this->forceFill(['qr_token' => Str::random(40)])->save();
+    }
 
     // Relación: Un socio pertenece a un Plan
     public function plan()

@@ -245,13 +245,24 @@ class MemberController extends Controller
             . "Folio: *{$member->folio}*.\n\n"
             . "Muestra este código QR en recepción para registrar tu entrada. 💪";
 
-        $ok = $whatsapp->enviarConQr($member->phone, $mensaje, $member->folio);
+        $ok = $whatsapp->enviarConQr($member->phone, $mensaje, $member->qr_token);
 
         if ($ok) {
             return back()->with('success', 'Gafete enviado por WhatsApp a ' . $member->phone . '.');
         }
 
         return back()->with('error', 'No se pudo enviar por WhatsApp. Verifica que esté vinculado (código escaneado) y que el número tenga WhatsApp.');
+    }
+
+    /**
+     * Regenera el token del QR del socio (invalida el gafete anterior).
+     * Útil si el socio pierde su gafete o se filtra su código.
+     */
+    public function regenerarQr(\App\Models\Member $member)
+    {
+        $member->regenerarQrToken();
+
+        return back()->with('success', 'Código QR regenerado. El gafete anterior ya no sirve; imprime o envía el nuevo.');
     }
 
     // Vista completa del historial de pagos
